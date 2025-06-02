@@ -115,7 +115,7 @@
                   </svg>
                 </button>
                 <button
-                  @click="showDeleteModal(employee)"
+                  @click="openDeleteModal(employee)"
                   class="text-red-600 hover:text-red-900"
                   title="Supprimer"
                 >
@@ -219,17 +219,17 @@ const showTerminateModal = (employee: Employee) => {
   showTerminationModal.value = true
 }
 
-const showDeleteModal = (employee: Employee) => {
+const openDeleteModal = (employee: Employee) => {
   selectedEmployee.value = employee
   showDeleteModal.value = true
 }
 
-const handleAddEmployee = async (employeeData: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => {
+const handleAddEmployee = async (employeeData: any) => {
   await accountingStore.addEmployee(employeeData)
   showAddModal.value = false
 }
 
-const handleEditEmployee = async (employeeData: Partial<Employee>) => {
+const handleEditEmployee = async (employeeData: any) => {
   if (selectedEmployee.value) {
     await accountingStore.updateEmployee(selectedEmployee.value.id, employeeData)
     showEditModal.value = false

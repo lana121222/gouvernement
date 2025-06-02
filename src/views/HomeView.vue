@@ -2,6 +2,25 @@
 import { ref, onMounted } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
 import { useAccountingStore } from '@/stores/accounting'
+
+const accountingStore = useAccountingStore()
+
+const stats = ref({
+  activeEmployees: 0,
+  citizens: 1250,
+  events: 8
+})
+
+onMounted(async () => {
+  // Charger les statistiques des employés si l'utilisateur a accès
+  try {
+    await accountingStore.fetchEmployees()
+    stats.value.activeEmployees = accountingStore.activeEmployees.length
+  } catch (error) {
+    // Ignorer l'erreur si l'utilisateur n'a pas accès
+    stats.value.activeEmployees = 12
+  }
+})
 </script>
 
 <template>
@@ -147,28 +166,3 @@ import { useAccountingStore } from '@/stores/accounting'
     </div>
   </AppLayout>
 </template>
-
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import AppLayout from '@/components/AppLayout.vue'
-import { useAccountingStore } from '@/stores/accounting'
-
-const accountingStore = useAccountingStore()
-
-const stats = ref({
-  activeEmployees: 0,
-  citizens: 1250,
-  events: 8
-})
-
-onMounted(async () => {
-  // Charger les statistiques des employés si l'utilisateur a accès
-  try {
-    await accountingStore.fetchEmployees()
-    stats.value.activeEmployees = accountingStore.activeEmployees.length
-  } catch (error) {
-    // Ignorer l'erreur si l'utilisateur n'a pas accès
-    stats.value.activeEmployees = 12
-  }
-})
-</script>

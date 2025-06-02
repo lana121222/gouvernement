@@ -84,7 +84,7 @@
                   </svg>
                 </button>
                 <button
-                  @click="showDeleteModal(employee)"
+                  @click="openDeleteModal(employee)"
                   class="text-red-600 hover:text-red-900"
                   title="Supprimer définitivement"
                 >
@@ -138,7 +138,7 @@ const reactivateEmployee = async (employee: Employee) => {
   }
 }
 
-const showDeleteModal = (employee: Employee) => {
+const openDeleteModal = (employee: Employee) => {
   selectedEmployee.value = employee
   showDeleteModal.value = true
 }
