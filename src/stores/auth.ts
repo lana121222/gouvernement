@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { auth, db, type User } from '@/lib/firebase'
 import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -15,6 +15,48 @@ export const useAuthStore = defineStore('auth', () => {
   const canAccessAccounting = computed(() => 
     user.value?.permissions.includes('accounting') || user.value?.role === 'admin'
   )
+
+  // Fonction pour créer automatiquement un profil admin
+  async function createAdminProfile(firebaseUser: any) {
+    const adminEmails = [
+      'admin@gouvernement-rp.com',
+      'manager@gouvernement-rp.com', 
+      'comptable@gouvernement-rp.com'
+    ]
+
+    let role = 'viewer'
+    let permissions: string[] = []
+
+    // Déterminer le rôle basé sur l'email
+    if (firebaseUser.email === 'admin@gouvernement-rp.com') {
+      role = 'admin'
+      permissions = ['accounting', 'users', 'employees', 'transactions']
+    } else if (firebaseUser.email === 'manager@gouvernement-rp.com') {
+      role = 'manager'
+      permissions = ['accounting', 'employees']
+    } else if (firebaseUser.email === 'comptable@gouvernement-rp.com') {
+      role = 'employee'
+      permissions = ['accounting']
+    } else if (adminEmails.some(email => firebaseUser.email?.includes('admin'))) {
+      // Si l'email contient "admin", le rendre admin automatiquement
+      role = 'admin'
+      permissions = ['accounting', 'users', 'employees', 'transactions']
+    }
+
+    const newUserProfile: User = {
+      id: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      role: role as 'admin' | 'manager' | 'employee' | 'viewer',
+      permissions,
+      created_at: new Date().toISOString()
+    }
+
+    // Créer le document dans Firestore
+    await setDoc(doc(db, 'users', firebaseUser.uid), newUserProfile)
+    console.log(`✅ Profil ${role} créé automatiquement pour ${firebaseUser.email}`)
+    
+    return newUserProfile
+  }
 
   async function signIn(email: string, password: string) {
     loading.value = true
@@ -30,14 +72,9 @@ export const useAuthStore = defineStore('auth', () => {
         if (userDoc.exists()) {
           user.value = { id: userDoc.id, ...userDoc.data() } as User
         } else {
-          // Créer un profil par défaut si il n'existe pas
-          user.value = {
-            id: userCredential.user.uid,
-            email: userCredential.user.email || '',
-            role: 'viewer',
-            permissions: [],
-            created_at: new Date().toISOString()
-          }
+          // Créer automatiquement le profil si il n'existe pas
+          console.log('🔥 Création automatique du profil utilisateur...')
+          user.value = await createAdminProfile(userCredential.user)
         }
       }
     } catch (err: any) {
@@ -72,14 +109,9 @@ export const useAuthStore = defineStore('auth', () => {
             if (userDoc.exists()) {
               user.value = { id: userDoc.id, ...userDoc.data() } as User
             } else {
-              // Créer un profil par défaut
-              user.value = {
-                id: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                role: 'viewer',
-                permissions: [],
-                created_at: new Date().toISOString()
-              }
+              // Créer automatiquement le profil si il n'existe pas
+              console.log('🔥 Création automatique du profil utilisateur...')
+              user.value = await createAdminProfile(firebaseUser)
             }
           } else {
             user.value = null
