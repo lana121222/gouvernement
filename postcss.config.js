@@ -1,7 +1,7 @@
-// Configuration PostCSS pour Tailwind CSS v4 (Vercel)
+// Configuration PostCSS pour Tailwind CSS v3 (compatible Vercel)
 export default {
   plugins: {
-    '@tailwindcss/postcss': {},
+    tailwindcss: {},
     autoprefixer: {},
   },
 } 
