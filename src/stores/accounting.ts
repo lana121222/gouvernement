@@ -1,6 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase, type Employee, type Transaction } from '@/lib/supabase'
+import { db, type Employee, type Transaction } from '@/lib/firebase'
+import { 
+  collection, 
+  doc, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  orderBy, 
+  where 
+} from 'firebase/firestore'
 
 export const useAccountingStore = defineStore('accounting', () => {
   const employees = ref<Employee[]>([])
@@ -38,13 +49,13 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function fetchEmployees() {
     loading.value = true
     try {
-      const { data, error: fetchError } = await supabase
-        .from('employees')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const q = query(collection(db, 'employees'), orderBy('created_at', 'desc'))
+      const querySnapshot = await getDocs(q)
       
-      if (fetchError) throw fetchError
-      employees.value = data || []
+      employees.value = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Employee[]
     } catch (err: any) {
       error.value = err.message
     } finally {
@@ -55,17 +66,16 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function addEmployee(employeeData: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) {
     loading.value = true
     try {
-      const { data, error: insertError } = await supabase
-        .from('employees')
-        .insert([{
-          ...employeeData,
-          total_earnings: (employeeData.hours_worked * employeeData.hourly_rate) + employeeData.bonus_amount
-        }])
-        .select()
-        .single()
+      const newEmployee = {
+        ...employeeData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        total_earnings: (employeeData.hours_worked * employeeData.hourly_rate) + employeeData.bonus_amount
+      }
       
-      if (insertError) throw insertError
-      employees.value.unshift(data)
+      const docRef = await addDoc(collection(db, 'employees'), newEmployee)
+      const employeeWithId = { id: docRef.id, ...newEmployee }
+      employees.value.unshift(employeeWithId)
     } catch (err: any) {
       error.value = err.message
     } finally {
@@ -87,18 +97,16 @@ export const useAccountingStore = defineStore('accounting', () => {
         }
       }
 
-      const { data, error: updateError } = await supabase
-        .from('employees')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single()
+      const updatedData = { 
+        ...updates, 
+        updated_at: new Date().toISOString() 
+      }
       
-      if (updateError) throw updateError
+      await updateDoc(doc(db, 'employees', id), updatedData)
       
       const index = employees.value.findIndex(emp => emp.id === id)
       if (index !== -1) {
-        employees.value[index] = data
+        employees.value[index] = { ...employees.value[index], ...updatedData }
       }
     } catch (err: any) {
       error.value = err.message
@@ -142,18 +150,14 @@ export const useAccountingStore = defineStore('accounting', () => {
     loading.value = true
     try {
       // Supprimer toutes les transactions liées
-      await supabase
-        .from('transactions')
-        .delete()
-        .eq('employee_id', id)
+      const q = query(collection(db, 'transactions'), where('employee_id', '==', id))
+      const querySnapshot = await getDocs(q)
+      
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref))
+      await Promise.all(deletePromises)
 
       // Supprimer l'employé
-      const { error: deleteError } = await supabase
-        .from('employees')
-        .delete()
-        .eq('id', id)
-      
-      if (deleteError) throw deleteError
+      await deleteDoc(doc(db, 'employees', id))
       
       employees.value = employees.value.filter(emp => emp.id !== id)
       transactions.value = transactions.value.filter(t => t.employee_id !== id)
@@ -168,13 +172,13 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function fetchTransactions() {
     loading.value = true
     try {
-      const { data, error: fetchError } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const q = query(collection(db, 'transactions'), orderBy('created_at', 'desc'))
+      const querySnapshot = await getDocs(q)
       
-      if (fetchError) throw fetchError
-      transactions.value = data || []
+      transactions.value = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Transaction[]
     } catch (err: any) {
       error.value = err.message
     } finally {
@@ -185,14 +189,14 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function addTransaction(transactionData: Omit<Transaction, 'id' | 'created_at'>) {
     loading.value = true
     try {
-      const { data, error: insertError } = await supabase
-        .from('transactions')
-        .insert([transactionData])
-        .select()
-        .single()
+      const newTransaction = {
+        ...transactionData,
+        created_at: new Date().toISOString()
+      }
       
-      if (insertError) throw insertError
-      transactions.value.unshift(data)
+      const docRef = await addDoc(collection(db, 'transactions'), newTransaction)
+      const transactionWithId = { id: docRef.id, ...newTransaction }
+      transactions.value.unshift(transactionWithId)
     } catch (err: any) {
       error.value = err.message
     } finally {
@@ -203,12 +207,7 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function deleteTransaction(id: string) {
     loading.value = true
     try {
-      const { error: deleteError } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', id)
-      
-      if (deleteError) throw deleteError
+      await deleteDoc(doc(db, 'transactions', id))
       transactions.value = transactions.value.filter(t => t.id !== id)
     } catch (err: any) {
       error.value = err.message
@@ -227,16 +226,18 @@ export const useAccountingStore = defineStore('accounting', () => {
         date: new Date().toISOString()
       }
 
-      // Sauvegarder dans une table d'historique
-      await supabase
-        .from('accounting_backups')
-        .insert([{
-          backup_data: backupData,
-          created_at: new Date().toISOString()
-        }])
+      // Sauvegarder dans une collection d'historique
+      await addDoc(collection(db, 'accounting_backups'), {
+        backup_data: backupData,
+        created_at: new Date().toISOString()
+      })
 
       // Supprimer toutes les transactions
-      await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      const transactionsQuery = query(collection(db, 'transactions'))
+      const transactionsSnapshot = await getDocs(transactionsQuery)
+      
+      const deletePromises = transactionsSnapshot.docs.map(doc => deleteDoc(doc.ref))
+      await Promise.all(deletePromises)
       
       // Remettre à zéro les heures et gains des employés actifs
       for (const employee of activeEmployees.value) {

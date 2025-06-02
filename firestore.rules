@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 👤 Users peuvent lire/écrire leur propre profil
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 👥 Admins peuvent gérer tous les utilisateurs
+    match /users/{userId} {
+      allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // 💼 Employés - Admins et Managers peuvent tout faire
+    match /employees/{employeeId} {
+      allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'];
+    }
+    
+    // 💰 Transactions - Admins, Managers et Comptables
+    match /transactions/{transactionId} {
+      allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'] ||
+         'accounting' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions);
+    }
+    
+    // 🔒 Tout le reste interdit par défaut
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

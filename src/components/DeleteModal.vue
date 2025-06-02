@@ -88,7 +88,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { Employee } from '@/lib/supabase'
+import type { Employee } from '@/lib/firebase'
 
 interface Props {
   employee: Employee | null

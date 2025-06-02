@@ -174,7 +174,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
-import type { Employee } from '@/lib/supabase'
+import type { Employee } from '@/lib/firebase'
 import EmployeeModal from './EmployeeModal.vue'
 import PaymentModal from './PaymentModal.vue'
 import TerminationModal from './TerminationModal.vue'

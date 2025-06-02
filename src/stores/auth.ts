@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase, type User } from '@/lib/supabase'
+import { auth, db, type User } from '@/lib/firebase'
+import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -19,23 +21,24 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
       
-      if (authError) throw authError
-      
-      if (data.user) {
-        // Récupérer les informations utilisateur depuis la base de données
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single()
+      if (userCredential.user) {
+        // Récupérer les informations utilisateur depuis Firestore
+        const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
         
-        if (userError) throw userError
-        user.value = userData
+        if (userDoc.exists()) {
+          user.value = { id: userDoc.id, ...userDoc.data() } as User
+        } else {
+          // Créer un profil par défaut si il n'existe pas
+          user.value = {
+            id: userCredential.user.uid,
+            email: userCredential.user.email || '',
+            role: 'viewer',
+            permissions: [],
+            created_at: new Date().toISOString()
+          }
+        }
       }
     } catch (err: any) {
       error.value = err.message
@@ -47,7 +50,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function signOut() {
     loading.value = true
     try {
-      await supabase.auth.signOut()
+      await firebaseSignOut(auth)
       user.value = null
     } catch (err: any) {
       error.value = err.message
@@ -58,25 +61,39 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function checkAuth() {
     loading.value = true
-    try {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      if (authUser) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authUser.id)
-          .single()
-        
-        if (!userError) {
-          user.value = userData
+    
+    return new Promise<void>((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        try {
+          if (firebaseUser) {
+            // Récupérer les données utilisateur depuis Firestore
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
+            
+            if (userDoc.exists()) {
+              user.value = { id: userDoc.id, ...userDoc.data() } as User
+            } else {
+              // Créer un profil par défaut
+              user.value = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                role: 'viewer',
+                permissions: [],
+                created_at: new Date().toISOString()
+              }
+            }
+          } else {
+            user.value = null
+          }
+        } catch (err: any) {
+          error.value = err.message
+          user.value = null
+        } finally {
+          loading.value = false
+          unsubscribe()
+          resolve()
         }
-      }
-    } catch (err: any) {
-      error.value = err.message
-    } finally {
-      loading.value = false
-    }
+      })
+    })
   }
 
   return {

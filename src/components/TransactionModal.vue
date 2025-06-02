@@ -120,7 +120,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { Transaction } from '@/lib/supabase'
+import type { Transaction } from '@/lib/firebase'
 
 const emit = defineEmits<{
   close: []

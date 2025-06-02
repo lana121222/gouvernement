@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
-import type { Transaction } from '@/lib/supabase'
+import type { Transaction } from '@/lib/firebase'
 import TransactionModal from './TransactionModal.vue'
 
 const accountingStore = useAccountingStore()
