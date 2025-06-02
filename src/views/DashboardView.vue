@@ -37,6 +37,27 @@
           </div>
         </router-link>
 
+        <!-- Gestion des utilisateurs (Admin seulement) -->
+        <div
+          v-if="authStore.user?.role === 'admin'"
+          @click="showUserManagement = true"
+          class="card hover:shadow-md transition-shadow duration-200 cursor-pointer"
+        >
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-500">Administration</p>
+              <p class="text-lg font-semibold text-gray-900">Gestion des utilisateurs</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Profil -->
         <div class="card">
           <div class="flex items-center">
@@ -69,6 +90,27 @@
               <p class="text-lg font-semibold text-gray-900">3 nouvelles</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Modal de gestion des utilisateurs -->
+      <div v-if="showUserManagement" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-10 mx-auto p-5 border max-w-6xl shadow-lg rounded-md bg-white">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-medium text-gray-900">
+              🔧 Administration - Gestion des utilisateurs
+            </h3>
+            <button
+              @click="showUserManagement = false"
+              class="text-gray-400 hover:text-gray-600"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <UserManagement />
         </div>
       </div>
 
@@ -183,8 +225,11 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
+import UserManagement from '@/components/UserManagement.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const showUserManagement = ref(false)
 </script> 
