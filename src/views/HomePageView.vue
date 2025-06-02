@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// Nouveau déploiement Vercel - Build stable
 import { ref, onMounted } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
 import { useAccountingStore } from '@/stores/accounting'
@@ -13,12 +12,10 @@ const stats = ref({
 })
 
 onMounted(async () => {
-  // Charger les statistiques des employés si l'utilisateur a accès
   try {
     await accountingStore.fetchEmployees()
     stats.value.activeEmployees = accountingStore.activeEmployees.length
   } catch (error) {
-    // Ignorer l'erreur si l'utilisateur n'a pas accès
     stats.value.activeEmployees = 12
   }
 })
@@ -26,7 +23,6 @@ onMounted(async () => {
 
 <template>
   <AppLayout>
-    <!-- Hero Section -->
     <div class="bg-gradient-to-r from-primary-600 to-primary-800">
       <div class="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
         <div class="text-center">
@@ -59,7 +55,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Services Section -->
     <div class="py-12 bg-white">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="lg:text-center">
@@ -126,7 +121,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Stats Section -->
     <div class="bg-primary-800">
       <div class="max-w-7xl mx-auto py-12 px-4 sm:py-16 sm:px-6 lg:px-8 lg:py-20">
         <div class="max-w-4xl mx-auto text-center">
