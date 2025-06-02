@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// Nouveau déploiement Vercel - Build stable
 import { ref, onMounted } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
 import { useAccountingStore } from '@/stores/accounting'
