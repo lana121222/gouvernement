@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// Force rebuild for Vercel
 import { ref, onMounted } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
 import { useAccountingStore } from '@/stores/accounting'
@@ -166,4 +165,4 @@ onMounted(async () => {
       </div>
     </div>
   </AppLayout>
-</template>
+</template> 
