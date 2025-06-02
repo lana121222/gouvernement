@@ -3,9 +3,22 @@ import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <RouterView />
+  <div class="w-full min-h-screen">
+    <RouterView />
+  </div>
 </template>
 
 <style>
-/* Styles globaux si nécessaire */
+/* Styles globaux pour forcer l'affichage desktop */
+html, body {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#app {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
 </style>
