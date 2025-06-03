@@ -336,8 +336,10 @@ import { useAuthStore } from '@/stores/auth'
 import { db, type UserProfile } from '@/lib/firebase'
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
 import AppLayout from '@/components/AppLayout.vue'
+import { useNotificationStore } from '@/stores/notifications'
 
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 const loading = ref(false)
 const showPermissionError = ref(false)
 const showImageModal = ref(false)
@@ -381,9 +383,12 @@ const loadProfile = async () => {
     console.error('Erreur lors du chargement du profil:', error)
     if (error.code === 'permission-denied') {
       showPermissionError.value = true
-      alert('⚠️ Problème de permissions Firebase\n\nLes règles Firestore doivent être mises à jour dans la console Firebase.\nVeuillez contacter l\'administrateur.')
+      notificationStore.error(
+        '⚠️ Problème de permissions Firebase', 
+        'Les règles Firestore doivent être mises à jour dans la console Firebase. Veuillez contacter l\'administrateur.'
+      )
     } else {
-      alert('Erreur lors du chargement du profil: ' + error.message)
+      notificationStore.error('Erreur lors du chargement du profil', error.message)
     }
   } finally {
     loading.value = false
@@ -417,18 +422,25 @@ const saveProfile = async () => {
       })
     }
 
-    alert('✅ Profil sauvegardé avec succès !')
+    notificationStore.success('✅ Profil sauvegardé avec succès !')
     console.log('Profil sauvegardé avec succès')
+    return true
   } catch (error: any) {
     console.error('Erreur lors de la sauvegarde:', error)
     if (error.code === 'permission-denied') {
-      showPermissionError.value = true
-      alert('⚠️ Problème de permissions Firebase\n\nLes règles Firestore doivent être mises à jour dans la console Firebase.\nVeuillez contacter l\'administrateur.')
-    } else if (error.message.includes('longer than')) {
-      alert('❌ Image trop volumineuse\n\nVeuillez choisir une image plus petite ou de meilleure qualité.')
+      notificationStore.error(
+        '⚠️ Problème de permissions Firebase',
+        'Les règles Firestore doivent être mises à jour dans la console Firebase. Veuillez contacter l\'administrateur.'
+      )
+    } else if (error.code === 'storage/object-not-found') {
+      notificationStore.warning(
+        '❌ Image trop volumineuse',
+        'Veuillez choisir une image plus petite ou de meilleure qualité.'
+      )
     } else {
-      alert('Erreur lors de la sauvegarde: ' + error.message)
+      notificationStore.error('Erreur lors de la sauvegarde', error.message)
     }
+    return false
   } finally {
     loading.value = false
   }
@@ -508,8 +520,11 @@ const handleFileUpload = async (documentType: string, event: Event) => {
     try {
       // Vérifier la taille du fichier (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('Le fichier est trop volumineux. Veuillez choisir un fichier de moins de 5MB.')
-        return
+        notificationStore.warning(
+          'Fichier trop volumineux',
+          'Veuillez choisir un fichier de moins de 5MB.'
+        )
+        return null
       }
 
       console.log(`Traitement du fichier ${file.name}...`)
@@ -528,15 +543,21 @@ const handleFileUpload = async (documentType: string, event: Event) => {
         // Si c'est une image, la compresser
         fileDataUrl = await compressImage(file)
       } else {
-        alert('Format de fichier non supporté. Veuillez choisir une image (JPG, PNG) ou un fichier PDF.')
-        return
+        notificationStore.warning(
+          'Format non supporté',
+          'Veuillez choisir une image (JPG, PNG) ou un fichier PDF.'
+        )
+        return null
       }
       
       // Vérifier la taille après traitement (base64)
       const sizeInBytes = fileDataUrl.length * 0.75 // Approximation taille base64
       if (sizeInBytes > 1000000) { // 1MB limite Firestore
-        alert('Le fichier est encore trop volumineux après traitement. Veuillez choisir un fichier plus petit.')
-        return
+        notificationStore.warning(
+          'Fichier encore trop volumineux',
+          'Le fichier est encore trop volumineux après traitement. Veuillez choisir un fichier plus petit.'
+        )
+        return null
       }
       
       // Assigner à la bonne propriété
@@ -553,9 +574,14 @@ const handleFileUpload = async (documentType: string, event: Event) => {
       }
       
       console.log(`Fichier ${file.name} traité avec succès`)
+      return fileDataUrl
     } catch (error) {
       console.error('Erreur lors du traitement du fichier:', error)
-      alert('Erreur lors du traitement du fichier. Veuillez réessayer.')
+      notificationStore.error(
+        'Erreur de traitement',
+        'Erreur lors du traitement du fichier. Veuillez réessayer.'
+      )
+      return null
     }
   }
 }

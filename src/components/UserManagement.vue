@@ -120,11 +120,13 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/users'
+import { useNotificationStore } from '@/stores/notifications'
 import type { User } from '@/lib/firebase'
 import UserEditModal from './UserEditModal.vue'
 
 const authStore = useAuthStore()
 const userStore = useUserStore()
+const notificationStore = useNotificationStore()
 
 const users = ref<User[]>([])
 const loading = ref(false)
@@ -183,9 +185,19 @@ const handleUpdateUser = async (userData: Partial<User>) => {
 }
 
 const deleteUser = async (user: User) => {
-  if (confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.email} ?`)) {
+  try {
+    const confirmed = await notificationStore.confirm(
+      'Supprimer l\'utilisateur',
+      `Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.email} ?`
+    )
+    if (!confirmed) return
+
     await userStore.deleteUser(user.id)
     await refreshUsers()
+    notificationStore.success('Utilisateur supprimé', 'Utilisateur supprimé avec succès')
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+    notificationStore.error('Erreur de suppression', 'Erreur lors de la suppression de l\'utilisateur')
   }
 }
 

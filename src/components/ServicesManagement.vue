@@ -227,8 +227,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
 import type { Employee, ServiceTransaction } from '@/lib/firebase'
+import { useNotificationStore } from '@/stores/notifications'
 
 const accountingStore = useAccountingStore()
+const notificationStore = useNotificationStore()
 
 // Timer pour mise à jour en temps réel
 const currentTime = ref(new Date())
@@ -265,7 +267,10 @@ const startShift = async (employee: Employee) => {
     console.log('Service démarré avec succès')
   } catch (error) {
     console.error('Erreur lors de la prise de service:', error)
-    alert('Erreur lors de la prise de service: ' + (error as Error).message)
+    notificationStore.error(
+      'Erreur de prise de service',
+      'Erreur lors de la prise de service: ' + (error as Error).message
+    )
   }
 }
 
@@ -276,7 +281,10 @@ const endShift = async (employee: Employee) => {
     console.log('Fin de service enregistrée avec succès')
   } catch (error) {
     console.error('Erreur lors de la fin de service:', error)
-    alert('Erreur lors de la fin de service: ' + (error as Error).message)
+    notificationStore.error(
+      'Erreur de fin de service',
+      'Erreur lors de la fin de service: ' + (error as Error).message
+    )
   }
 }
 

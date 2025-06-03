@@ -248,6 +248,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
+import { useNotificationStore } from '@/stores/notifications'
 import type { Employee } from '@/lib/firebase'
 import AppLayout from '@/components/AppLayout.vue'
 import EmployeeModal from '@/components/EmployeeModal.vue'
@@ -261,6 +262,7 @@ import StatsModal from '@/components/StatsModal.vue'
 import PayAllModal from '@/components/PayAllModal.vue'
 
 const accountingStore = useAccountingStore()
+const notificationStore = useNotificationStore()
 
 // État des modals
 const showAddModal = ref(false)
@@ -393,28 +395,23 @@ const updateEmployeeBonus = async (id: string, bonus: number) => {
 
 const reactivateEmployee = async (employee: Employee) => {
   try {
-    const confirmed = confirm(`Êtes-vous sûr de vouloir réactiver ${employee.first_name} ${employee.last_name} ?`)
+    const confirmed = await notificationStore.confirm(
+      'Confirmer la réactivation',
+      `Êtes-vous sûr de vouloir réactiver ${employee.first_name} ${employee.last_name} ?`
+    )
     if (!confirmed) return
 
-    // Afficher un indicateur de chargement
-    console.log(`Réactivation de ${employee.first_name} ${employee.last_name}...`)
-    
-    await accountingStore.updateEmployee(employee.id, {
-      is_active: true,
-      is_former: false,
-      termination_date: undefined,
-      termination_reason: undefined
-    })
-
-    // Notification de succès
-    alert(`${employee.first_name} ${employee.last_name} a été réactivé(e) avec succès !`)
-    
-    // Optionnel : changer d'onglet pour voir l'employé réactivé
-    activeTab.value = 'active'
-    
+    await accountingStore.reactivateEmployee(employee.id)
+    notificationStore.success(
+      'Employé réactivé',
+      `${employee.first_name} ${employee.last_name} a été réactivé(e) avec succès !`
+    )
   } catch (error) {
     console.error('Erreur lors de la réactivation:', error)
-    alert(`Erreur lors de la réactivation de ${employee.first_name} ${employee.last_name}. Veuillez réessayer.`)
+    notificationStore.error(
+      'Erreur de réactivation',
+      `Erreur lors de la réactivation de ${employee.first_name} ${employee.last_name}. Veuillez réessayer.`
+    )
   }
 }
 
@@ -457,41 +454,49 @@ const handleDelete = async () => {
 
 const handlePayAll = async () => {
   if (employeesToPay.value.length === 0) {
-    alert('Aucun employé à payer')
+    notificationStore.warning('Aucun employé à payer', 'Tous les employés ont déjà été payés.')
     return
   }
   showPayAllModal.value = true
 }
 
 const handlePayAllConfirm = async () => {
+  if (employeesToPay.value.length === 0) {
+    notificationStore.warning('Aucun employé à payer', 'Tous les employés ont déjà été payés.')
+    return
+  }
+
   try {
     for (const employee of employeesToPay.value) {
       await accountingStore.payEmployee(employee.id)
     }
-    showPayAllModal.value = false
-    alert(`${employeesToPay.value.length} employé(s) payé(s) avec succès !`)
+    
+    notificationStore.success(
+      'Paiement en masse réussi',
+      `${employeesToPay.value.length} employé(s) payé(s) avec succès !`
+    )
   } catch (error) {
     console.error('Erreur lors du paiement en masse:', error)
-    alert('Erreur lors du paiement en masse')
+    notificationStore.error('Erreur de paiement', 'Erreur lors du paiement en masse')
   }
 }
 
 const handleResetHours = async () => {
-  if (!confirm('Êtes-vous sûr de vouloir remettre à zéro les heures de tous les employés actifs ?')) {
-    return
-  }
-  
+  const confirmed = await notificationStore.confirm(
+    'Remettre à zéro les heures',
+    'Êtes-vous sûr de vouloir remettre à zéro les heures de tous les employés actifs ?'
+  )
+  if (!confirmed) return
+
   try {
-    for (const employee of accountingStore.activeEmployees) {
-      await accountingStore.updateEmployee(employee.id, {
-        hours_worked: 0,
-        bonus_amount: 0
-      })
-    }
-    alert('Heures remises à zéro pour tous les employés actifs !')
+    await accountingStore.resetAllHours()
+    notificationStore.success(
+      'Heures remises à zéro',
+      'Heures remises à zéro pour tous les employés actifs !'
+    )
   } catch (error) {
-    console.error('Erreur lors de la remise à zéro:', error)
-    alert('Erreur lors de la remise à zéro des heures')
+    console.error('Erreur lors de la remise à zéro des heures:', error)
+    notificationStore.error('Erreur', 'Erreur lors de la remise à zéro des heures')
   }
 }
 
@@ -533,10 +538,10 @@ const handleExportData = () => {
     link.click()
     document.body.removeChild(link)
     
-    alert('Données exportées avec succès !')
+    notificationStore.success('Export réussi', 'Données exportées avec succès !')
   } catch (error) {
     console.error('Erreur lors de l\'export:', error)
-    alert('Erreur lors de l\'export des données')
+    notificationStore.error('Erreur d\'export', 'Erreur lors de l\'export des données')
   }
 }
 

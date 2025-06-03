@@ -257,8 +257,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
+import { useNotificationStore } from '@/stores/notifications'
 
 const accountingStore = useAccountingStore()
+const notificationStore = useNotificationStore()
 
 // État du formulaire
 const selectedEmployeeId = ref('')
@@ -395,15 +397,17 @@ const submitSale = async () => {
     selectedType.value = ''
     resetForm()
     
-    alert('Vente/Prestation enregistrée avec succès !')
-    
-    // Forcer le rafraîchissement de l'historique
-    console.log('[SALES] Rafraîchissement de l\'historique...')
-    await refreshHistory()
-    
+    notificationStore.success(
+      'Vente enregistrée',
+      'Vente/Prestation enregistrée avec succès !'
+    )
   } catch (error) {
-    console.error('[SALES] Erreur lors de l\'enregistrement:', error)
-    alert('Erreur lors de l\'enregistrement: ' + (error as Error).message)
+    console.error('Erreur lors de l\'enregistrement:', error)
+    
+    notificationStore.error(
+      'Erreur d\'enregistrement',
+      'Erreur lors de l\'enregistrement: ' + (error as Error).message
+    )
   }
 }
 

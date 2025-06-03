@@ -92,7 +92,7 @@ service cloud.firestore {
     }
     
     // 🎯 BONUS CONFIGS COLLECTION - Configurations de primes par grade
-    match /bonusConfigs/{bonusConfigId} {
+    match /bonus_configs/{bonusConfigId} {
       // Lecture: tous les utilisateurs authentifiés (pour calculs de primes)
       allow read: if isAuthenticated();
       

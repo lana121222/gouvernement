@@ -244,13 +244,15 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
 import type { ServiceItem } from '@/lib/firebase'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notifications'
 
 console.log('🟢 COMPOSANT PricingManagement.vue CHARGÉ')
 
 const accountingStore = useAccountingStore()
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 
-console.log('🟢 Stores initialisés:', { accountingStore, authStore })
+console.log('🟢 Stores initialisés:', { accountingStore, authStore, notificationStore })
 
 // État des modals
 const showAddModal = ref(false)
@@ -291,13 +293,17 @@ const editService = (service: ServiceItem) => {
 }
 
 const deleteService = async (service: ServiceItem) => {
-  if (confirm(`Êtes-vous sûr de vouloir supprimer "${service.name}" ?`)) {
-    try {
-      await accountingStore.deleteServiceItem(service.id)
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error)
-      alert('Erreur lors de la suppression')
-    }
+  try {
+    const confirmed = await notificationStore.confirm(
+      'Supprimer le service',
+      `Êtes-vous sûr de vouloir supprimer "${service.name}" ?`
+    )
+    if (!confirmed) return
+
+    await accountingStore.deleteServiceItem(service.id)
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+    notificationStore.error('Erreur de suppression', 'Erreur lors de la suppression')
   }
 }
 
@@ -335,23 +341,27 @@ const submitForm = async () => {
         
         if (!userData.role && !userData.permissions) {
           console.log('[PRICING] ❌ PROBLÈME: L\'utilisateur n\'a ni rôle ni permissions!')
-          alert('ERREUR: Votre compte n\'a pas les permissions nécessaires. Contactez un administrateur.')
+          notificationStore.error(
+            'Permissions insuffisantes',
+            'ERREUR: Votre compte n\'a pas les permissions nécessaires. Contactez un administrateur.'
+          )
           return
         }
       } else {
         console.log('[PRICING] ❌ PROBLÈME CRITIQUE: Document utilisateur inexistant dans Firestore!')
         console.log('[PRICING] UID recherché:', auth.currentUser.uid)
-        alert(`ERREUR CRITIQUE: Votre compte (${auth.currentUser.email}) n'existe pas dans la base de données. 
-
-Créez un document dans Firestore:
-Collection: users
-Document ID: ${auth.currentUser.uid}
-Contenu: { "role": "admin", "permissions": ["accounting"], "email": "${auth.currentUser.email}" }`)
+        notificationStore.error(
+          'Compte introuvable',
+          `ERREUR CRITIQUE: Votre compte (${auth.currentUser.email}) n'existe pas dans la base de données.\n\nVeuillez contacter l'administrateur pour résoudre ce problème.`
+        )
         return
       }
     } catch (error) {
       console.error('[PRICING] Erreur lors de la vérification du document utilisateur:', error)
-      alert('Erreur lors de la vérification des permissions')
+      notificationStore.error(
+        'Erreur de vérification',
+        'Erreur lors de la vérification des permissions'
+      )
       return
     }
   }
@@ -359,20 +369,17 @@ Contenu: { "role": "admin", "permissions": ["accounting"], "email": "${auth.curr
   try {
     // Validation des données
     if (!formData.value.name.trim()) {
-      console.log('[PRICING] Erreur: nom manquant')
-      alert('Le nom du service est requis')
+      notificationStore.warning('Nom requis', 'Le nom du service est requis')
       return
     }
     
     if (!formData.value.category) {
-      console.log('[PRICING] Erreur: catégorie manquante')
-      alert('La catégorie est requise')
+      notificationStore.warning('Catégorie requise', 'La catégorie est requise')
       return
     }
     
     if (formData.value.price <= 0) {
-      console.log('[PRICING] Erreur: prix invalide')
-      alert('Le prix doit être supérieur à 0')
+      notificationStore.warning('Prix invalide', 'Le prix doit être supérieur à 0')
       return
     }
 
@@ -427,15 +434,23 @@ Contenu: { "role": "admin", "permissions": ["accounting"], "email": "${auth.curr
       console.error('[PRICING] Code d\'erreur Firebase:', error.code)
       if (error.code === 'permission-denied') {
         console.error('[PRICING] ERREUR DE PERMISSION FIREBASE!')
-        console.error('[PRICING] L\'utilisateur n\'a pas les permissions nécessaires')
-        alert('Erreur de permissions: Vous n\'avez pas le droit d\'ajouter des services. Vérifiez votre authentification et vos permissions.')
+        notificationStore.error(
+          'Erreur de permissions',
+          'Erreur de permissions: Vous n\'avez pas le droit d\'ajouter des services. Vérifiez votre authentification et vos permissions.'
+        )
       } else if (error.code === 'unauthenticated') {
         console.error('[PRICING] ERREUR D\'AUTHENTIFICATION FIREBASE!')
-        alert('Erreur d\'authentification: Vous devez être connecté pour effectuer cette action.')
+        notificationStore.error(
+          'Erreur d\'authentification',
+          'Erreur d\'authentification: Vous devez être connecté pour effectuer cette action.'
+        )
+      } else {
+        notificationStore.error(
+          'Erreur d\'enregistrement',
+          'Erreur lors de l\'enregistrement: ' + (error instanceof Error ? error.message : 'Erreur inconnue')
+        )
       }
     }
-    
-    alert('Erreur lors de l\'enregistrement: ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
   }
 }
 

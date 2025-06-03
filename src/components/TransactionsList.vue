@@ -67,7 +67,7 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <button
-                @click="deleteTransaction(transaction.id)"
+                @click="deleteTransaction(transaction)"
                 class="text-red-600 hover:text-red-900"
                 title="Supprimer"
               >
@@ -95,9 +95,11 @@ import { ref } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
 import type { Transaction } from '@/lib/firebase'
 import TransactionModal from './TransactionModal.vue'
+import { useNotificationStore } from '@/stores/notifications'
 
 const accountingStore = useAccountingStore()
 const showAddModal = ref(false)
+const notificationStore = useNotificationStore()
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -116,9 +118,19 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const deleteTransaction = async (id: string) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer cette transaction ?')) {
-    await accountingStore.deleteTransaction(id)
+const deleteTransaction = async (transaction: any) => {
+  try {
+    const confirmed = await notificationStore.confirm(
+      'Supprimer la transaction',
+      'Êtes-vous sûr de vouloir supprimer cette transaction ?'
+    )
+    if (!confirmed) return
+
+    await accountingStore.deleteTransaction(transaction.id)
+    notificationStore.success('Transaction supprimée', 'Transaction supprimée avec succès')
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+    notificationStore.error('Erreur de suppression', 'Erreur lors de la suppression de la transaction')
   }
 }
 
