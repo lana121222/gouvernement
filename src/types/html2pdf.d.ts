@@ -11,11 +11,17 @@ declare module 'html2pdf.js' {
       useCORS?: boolean
       letterRendering?: boolean
       allowTaint?: boolean
+      backgroundColor?: string
+      logging?: boolean
+      width?: number
+      height?: number
     }
     jsPDF?: {
       unit?: string
       format?: string
       orientation?: string
+      putOnlyUsedFonts?: boolean
+      floatPrecision?: number
     }
   }
 

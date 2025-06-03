@@ -240,146 +240,135 @@
     </div>
 
     <!-- Élément caché pour la génération PDF -->
-    <div v-if="showPdfContent" ref="pdfContent" class="pdf-content" style="position: absolute; left: -9999px; top: -9999px; width: 800px; background: white; padding: 40px; font-family: Arial, sans-serif;">
-      <div class="pdf-header" style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px;">
-        <h1 style="color: #1f2937; font-size: 24px; margin: 0;">📊 Rapport de Sauvegarde</h1>
-        <h2 style="color: #6b7280; font-size: 18px; margin: 10px 0 0 0;">Gouvernement RP - Système Comptable</h2>
-        <p style="color: #9ca3af; font-size: 14px; margin: 5px 0 0 0;">Généré le {{ new Date().toLocaleDateString('fr-FR', { 
-          weekday: 'long',
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }) }}</p>
+    <div v-if="showPdfContent" ref="pdfContent" class="pdf-content" style="position: fixed; top: 0; left: 0; width: 210mm; background: white; padding: 20mm; font-family: Arial, sans-serif; z-index: 9999; transform: translateX(-100%);">
+      <div class="pdf-header" style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px;">
+        <h1 style="color: #1f2937; font-size: 28px; margin: 0; font-weight: bold;">📊 Rapport de Sauvegarde</h1>
+        <h2 style="color: #6b7280; font-size: 18px; margin: 8px 0 0 0; font-weight: normal;">Gouvernement RP - Système Comptable</h2>
+        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0 0 0;">Généré le {{ getCurrentDate() }}</p>
       </div>
 
       <div v-if="currentBackupForPdf" class="pdf-body">
         <!-- Informations générales -->
-        <div style="margin-bottom: 30px;">
-          <h3 style="color: #1f2937; font-size: 18px; margin-bottom: 15px; border-left: 4px solid #3b82f6; padding-left: 15px;">📋 Informations de la sauvegarde</h3>
-          <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
-            <p style="margin: 5px 0;"><strong>Description :</strong> {{ currentBackupForPdf.description || 'Sauvegarde automatique' }}</p>
-            <p style="margin: 5px 0;"><strong>Type :</strong> {{ currentBackupForPdf.type === 'manual' ? 'Manuelle' : 'Automatique' }}</p>
-            <p style="margin: 5px 0;"><strong>Date de création :</strong> {{ formatDate(currentBackupForPdf.created_at) }}</p>
-            <p style="margin: 5px 0;"><strong>Taille des données :</strong> {{ formatFileSize(JSON.stringify(currentBackupForPdf.backup_data || {}).length) }}</p>
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #1f2937; font-size: 16px; margin-bottom: 10px; border-left: 4px solid #3b82f6; padding-left: 10px; font-weight: bold;">📋 Informations de la sauvegarde</h3>
+          <div style="background: #f9fafb; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
+            <p style="margin: 3px 0; font-size: 12px;"><strong>Description :</strong> {{ currentBackupForPdf.description || 'Sauvegarde automatique' }}</p>
+            <p style="margin: 3px 0; font-size: 12px;"><strong>Type :</strong> {{ currentBackupForPdf.type === 'manual' ? 'Manuelle' : 'Automatique' }}</p>
+            <p style="margin: 3px 0; font-size: 12px;"><strong>Date de création :</strong> {{ formatDate(currentBackupForPdf.created_at) }}</p>
+            <p style="margin: 3px 0; font-size: 12px;"><strong>Taille des données :</strong> {{ formatFileSize(JSON.stringify(currentBackupForPdf.backup_data || {}).length) }}</p>
           </div>
         </div>
 
         <!-- Statistiques financières -->
-        <div v-if="currentBackupForPdf.backup_data" style="margin-bottom: 30px;">
-          <h3 style="color: #1f2937; font-size: 18px; margin-bottom: 15px; border-left: 4px solid #10b981; padding-left: 15px;">💰 Résumé Financier</h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #10b981;">
-              <p style="margin: 0; color: #065f46; font-weight: bold;">Revenus Totaux</p>
-              <p style="margin: 5px 0 0 0; font-size: 20px; color: #059669;">${{ formatCurrency(currentBackupForPdf.backup_data.totalIncome || 0) }}</p>
+        <div v-if="currentBackupForPdf.backup_data" style="margin-bottom: 20px;">
+          <h3 style="color: #1f2937; font-size: 16px; margin-bottom: 10px; border-left: 4px solid #10b981; padding-left: 10px; font-weight: bold;">💰 Résumé Financier</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            <div style="background: #ecfdf5; padding: 12px; border-radius: 6px; border: 1px solid #10b981; flex: 1; min-width: 120px;">
+              <p style="margin: 0; color: #065f46; font-weight: bold; font-size: 11px;">Revenus Totaux</p>
+              <p style="margin: 3px 0 0 0; font-size: 16px; color: #059669; font-weight: bold;">${{ formatCurrency(currentBackupForPdf.backup_data.totalIncome || 0) }}</p>
             </div>
-            <div style="background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #ef4444;">
-              <p style="margin: 0; color: #7f1d1d; font-weight: bold;">Dépenses Totales</p>
-              <p style="margin: 5px 0 0 0; font-size: 20px; color: #dc2626;">${{ formatCurrency(currentBackupForPdf.backup_data.totalExpenses || 0) }}</p>
+            <div style="background: #fef2f2; padding: 12px; border-radius: 6px; border: 1px solid #ef4444; flex: 1; min-width: 120px;">
+              <p style="margin: 0; color: #7f1d1d; font-weight: bold; font-size: 11px;">Dépenses Totales</p>
+              <p style="margin: 3px 0 0 0; font-size: 16px; color: #dc2626; font-weight: bold;">${{ formatCurrency(currentBackupForPdf.backup_data.totalExpenses || 0) }}</p>
             </div>
-            <div style="background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #3b82f6;">
-              <p style="margin: 0; color: #1e3a8a; font-weight: bold;">Solde Net</p>
-              <p style="margin: 5px 0 0 0; font-size: 20px;" :style="{ color: (currentBackupForPdf.backup_data.balance || 0) >= 0 ? '#059669' : '#dc2626' }">${{ formatCurrency(currentBackupForPdf.backup_data.balance || 0) }}</p>
+            <div style="background: #eff6ff; padding: 12px; border-radius: 6px; border: 1px solid #3b82f6; flex: 1; min-width: 120px;">
+              <p style="margin: 0; color: #1e3a8a; font-weight: bold; font-size: 11px;">Solde Net</p>
+              <p style="margin: 3px 0 0 0; font-size: 16px; font-weight: bold;" :style="{ color: (currentBackupForPdf.backup_data.balance || 0) >= 0 ? '#059669' : '#dc2626' }">${{ formatCurrency(currentBackupForPdf.backup_data.balance || 0) }}</p>
             </div>
-            <div style="background: #f5f3ff; padding: 15px; border-radius: 8px; border: 1px solid #8b5cf6;">
-              <p style="margin: 0; color: #581c87; font-weight: bold;">Masse Salariale</p>
-              <p style="margin: 5px 0 0 0; font-size: 20px; color: #7c3aed;">${{ formatCurrency(getMasseSalariale(currentBackupForPdf.backup_data)) }}</p>
+            <div style="background: #f5f3ff; padding: 12px; border-radius: 6px; border: 1px solid #8b5cf6; flex: 1; min-width: 120px;">
+              <p style="margin: 0; color: #581c87; font-weight: bold; font-size: 11px;">Masse Salariale</p>
+              <p style="margin: 3px 0 0 0; font-size: 16px; color: #7c3aed; font-weight: bold;">${{ formatCurrency(getMasseSalariale(currentBackupForPdf.backup_data)) }}</p>
             </div>
           </div>
         </div>
 
         <!-- Statistiques des données -->
-        <div style="margin-bottom: 30px;">
-          <h3 style="color: #1f2937; font-size: 18px; margin-bottom: 15px; border-left: 4px solid #f59e0b; padding-left: 15px;">📊 Contenu de la Sauvegarde</h3>
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
-            <div style="text-align: center; background: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #f59e0b;">
-              <p style="margin: 0; font-size: 24px; font-weight: bold; color: #92400e;">{{ currentBackupForPdf.backup_data?.employees?.length || 0 }}</p>
-              <p style="margin: 5px 0 0 0; color: #78350f; font-size: 12px;">Employés</p>
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #1f2937; font-size: 16px; margin-bottom: 10px; border-left: 4px solid #f59e0b; padding-left: 10px; font-weight: bold;">📊 Contenu de la Sauvegarde</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <div style="text-align: center; background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #f59e0b; flex: 1; min-width: 80px;">
+              <p style="margin: 0; font-size: 18px; font-weight: bold; color: #92400e;">{{ currentBackupForPdf.backup_data?.employees?.length || 0 }}</p>
+              <p style="margin: 2px 0 0 0; color: #78350f; font-size: 10px;">Employés</p>
             </div>
-            <div style="text-align: center; background: #d1fae5; padding: 15px; border-radius: 8px; border: 1px solid #10b981;">
-              <p style="margin: 0; font-size: 24px; font-weight: bold; color: #065f46;">{{ currentBackupForPdf.backup_data?.transactions?.length || 0 }}</p>
-              <p style="margin: 5px 0 0 0; color: #047857; font-size: 12px;">Transactions</p>
+            <div style="text-align: center; background: #d1fae5; padding: 10px; border-radius: 6px; border: 1px solid #10b981; flex: 1; min-width: 80px;">
+              <p style="margin: 0; font-size: 18px; font-weight: bold; color: #065f46;">{{ currentBackupForPdf.backup_data?.transactions?.length || 0 }}</p>
+              <p style="margin: 2px 0 0 0; color: #047857; font-size: 10px;">Transactions</p>
             </div>
-            <div style="text-align: center; background: #e0e7ff; padding: 15px; border-radius: 8px; border: 1px solid #6366f1;">
-              <p style="margin: 0; font-size: 24px; font-weight: bold; color: #3730a3;">{{ currentBackupForPdf.backup_data?.serviceTransactions?.length || 0 }}</p>
-              <p style="margin: 5px 0 0 0; color: #4338ca; font-size: 12px;">Services</p>
+            <div style="text-align: center; background: #e0e7ff; padding: 10px; border-radius: 6px; border: 1px solid #6366f1; flex: 1; min-width: 80px;">
+              <p style="margin: 0; font-size: 18px; font-weight: bold; color: #3730a3;">{{ currentBackupForPdf.backup_data?.serviceTransactions?.length || 0 }}</p>
+              <p style="margin: 2px 0 0 0; color: #4338ca; font-size: 10px;">Services</p>
             </div>
-            <div style="text-align: center; background: #fce7f3; padding: 15px; border-radius: 8px; border: 1px solid #ec4899;">
-              <p style="margin: 0; font-size: 24px; font-weight: bold; color: #be185d;">{{ getEmployesActifs(currentBackupForPdf.backup_data) }}</p>
-              <p style="margin: 5px 0 0 0; color: #be185d; font-size: 12px;">Employés Actifs</p>
+            <div style="text-align: center; background: #fce7f3; padding: 10px; border-radius: 6px; border: 1px solid #ec4899; flex: 1; min-width: 80px;">
+              <p style="margin: 0; font-size: 18px; font-weight: bold; color: #be185d;">{{ getEmployesActifs(currentBackupForPdf.backup_data) }}</p>
+              <p style="margin: 2px 0 0 0; color: #be185d; font-size: 10px;">Employés Actifs</p>
             </div>
           </div>
         </div>
 
         <!-- Top 5 des employés -->
-        <div v-if="currentBackupForPdf.backup_data?.employees?.length > 0" style="margin-bottom: 30px;">
-          <h3 style="color: #1f2937; font-size: 18px; margin-bottom: 15px; border-left: 4px solid #8b5cf6; padding-left: 15px;">👥 Top 5 Employés (Gains)</h3>
-          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-            <div style="background: #374151; color: white; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 12px; font-weight: bold; font-size: 14px;">
-              <div>Nom</div>
-              <div style="text-align: center;">Heures</div>
-              <div style="text-align: center;">Grade</div>
-              <div style="text-align: right;">Gains Totaux</div>
-            </div>
-            <div v-for="(employee, index) in getTopEmployees(currentBackupForPdf.backup_data)" :key="index" 
-                 :style="{ 
-                   display: 'grid', 
-                   'grid-template-columns': '2fr 1fr 1fr 1fr', 
-                   padding: '12px', 
-                   'border-bottom': index < 4 ? '1px solid #e5e7eb' : 'none',
-                   'background-color': index % 2 === 0 ? '#ffffff' : '#f9fafb'
-                 }">
-              <div style="font-weight: 500;">{{ employee.first_name }} {{ employee.last_name }}</div>
-              <div style="text-align: center;">{{ employee.hours_worked || 0 }}h</div>
-              <div style="text-align: center; text-transform: capitalize;">{{ employee.grade || 'débutant' }}</div>
-              <div style="text-align: right; font-weight: bold; color: #059669;">${{ formatCurrency(employee.total_earnings || 0) }}</div>
-            </div>
-          </div>
+        <div v-if="currentBackupForPdf.backup_data?.employees?.length > 0" style="margin-bottom: 20px;">
+          <h3 style="color: #1f2937; font-size: 16px; margin-bottom: 10px; border-left: 4px solid #8b5cf6; padding-left: 10px; font-weight: bold;">👥 Top 5 Employés (Gains)</h3>
+          <table style="width: 100%; border-collapse: collapse; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;">
+            <thead>
+              <tr style="background: #374151; color: white;">
+                <th style="padding: 8px; text-align: left; font-weight: bold; font-size: 11px; border-right: 1px solid #4b5563;">Nom</th>
+                <th style="padding: 8px; text-align: center; font-weight: bold; font-size: 11px; border-right: 1px solid #4b5563;">Heures</th>
+                <th style="padding: 8px; text-align: center; font-weight: bold; font-size: 11px; border-right: 1px solid #4b5563;">Grade</th>
+                <th style="padding: 8px; text-align: right; font-weight: bold; font-size: 11px;">Gains Totaux</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(employee, index) in getTopEmployees(currentBackupForPdf.backup_data)" :key="index" 
+                  :style="{ 'background-color': index % 2 === 0 ? '#ffffff' : '#f9fafb' }">
+                <td style="padding: 6px 8px; font-weight: 500; font-size: 11px; border-right: 1px solid #e5e7eb;">{{ employee.first_name }} {{ employee.last_name }}</td>
+                <td style="padding: 6px 8px; text-align: center; font-size: 11px; border-right: 1px solid #e5e7eb;">{{ employee.hours_worked || 0 }}h</td>
+                <td style="padding: 6px 8px; text-align: center; text-transform: capitalize; font-size: 11px; border-right: 1px solid #e5e7eb;">{{ employee.grade || 'débutant' }}</td>
+                <td style="padding: 6px 8px; text-align: right; font-weight: bold; color: #059669; font-size: 11px;">${{ formatCurrency(employee.total_earnings || 0) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Transactions récentes -->
-        <div v-if="currentBackupForPdf.backup_data?.transactions?.length > 0" style="margin-bottom: 30px;">
-          <h3 style="color: #1f2937; font-size: 18px; margin-bottom: 15px; border-left: 4px solid #ef4444; padding-left: 15px;">💳 Dernières Transactions</h3>
-          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-            <div style="background: #374151; color: white; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 12px; font-weight: bold; font-size: 14px;">
-              <div>Description</div>
-              <div style="text-align: center;">Type</div>
-              <div style="text-align: center;">Catégorie</div>
-              <div style="text-align: right;">Montant</div>
-            </div>
-            <div v-for="(transaction, index) in getRecentTransactions(currentBackupForPdf.backup_data)" :key="index" 
-                 :style="{ 
-                   display: 'grid', 
-                   'grid-template-columns': '2fr 1fr 1fr 1fr', 
-                   padding: '12px', 
-                   'border-bottom': index < 4 ? '1px solid #e5e7eb' : 'none',
-                   'background-color': index % 2 === 0 ? '#ffffff' : '#f9fafb'
-                 }">
-              <div style="font-weight: 500;">{{ transaction.description.substring(0, 40) }}{{ transaction.description.length > 40 ? '...' : '' }}</div>
-              <div style="text-align: center;">
-                <span :style="{ 
-                  padding: '2px 8px', 
-                  'border-radius': '12px', 
-                  'font-size': '12px',
-                  'background-color': transaction.type === 'income' ? '#dcfce7' : '#fee2e2',
-                  color: transaction.type === 'income' ? '#166534' : '#991b1b'
-                }">
-                  {{ transaction.type === 'income' ? 'Revenus' : 'Dépenses' }}
-                </span>
-              </div>
-              <div style="text-align: center; font-size: 12px; color: #6b7280;">{{ transaction.category || 'N/A' }}</div>
-              <div style="text-align: right; font-weight: bold;" :style="{ color: transaction.type === 'income' ? '#059669' : '#dc2626' }">
-                {{ transaction.type === 'income' ? '+' : '-' }}${{ formatCurrency(transaction.amount) }}
-              </div>
-            </div>
-          </div>
+        <div v-if="currentBackupForPdf.backup_data?.transactions?.length > 0" style="margin-bottom: 20px;">
+          <h3 style="color: #1f2937; font-size: 16px; margin-bottom: 10px; border-left: 4px solid #ef4444; padding-left: 10px; font-weight: bold;">💳 Dernières Transactions</h3>
+          <table style="width: 100%; border-collapse: collapse; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;">
+            <thead>
+              <tr style="background: #374151; color: white;">
+                <th style="padding: 8px; text-align: left; font-weight: bold; font-size: 11px; border-right: 1px solid #4b5563;">Description</th>
+                <th style="padding: 8px; text-align: center; font-weight: bold; font-size: 11px; border-right: 1px solid #4b5563;">Type</th>
+                <th style="padding: 8px; text-align: center; font-weight: bold; font-size: 11px; border-right: 1px solid #4b5563;">Catégorie</th>
+                <th style="padding: 8px; text-align: right; font-weight: bold; font-size: 11px;">Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(transaction, index) in getRecentTransactions(currentBackupForPdf.backup_data)" :key="index" 
+                  :style="{ 'background-color': index % 2 === 0 ? '#ffffff' : '#f9fafb' }">
+                <td style="padding: 6px 8px; font-weight: 500; font-size: 11px; border-right: 1px solid #e5e7eb;">{{ transaction.description.substring(0, 35) }}{{ transaction.description.length > 35 ? '...' : '' }}</td>
+                <td style="padding: 6px 8px; text-align: center; font-size: 10px; border-right: 1px solid #e5e7eb;">
+                  <span :style="{ 
+                    padding: '2px 6px', 
+                    'border-radius': '10px', 
+                    'font-size': '9px',
+                    'background-color': transaction.type === 'income' ? '#dcfce7' : '#fee2e2',
+                    color: transaction.type === 'income' ? '#166534' : '#991b1b'
+                  }">
+                    {{ transaction.type === 'income' ? 'Revenus' : 'Dépenses' }}
+                  </span>
+                </td>
+                <td style="padding: 6px 8px; text-align: center; font-size: 10px; color: #6b7280; border-right: 1px solid #e5e7eb;">{{ transaction.category || 'N/A' }}</td>
+                <td style="padding: 6px 8px; text-align: right; font-weight: bold; font-size: 11px;" :style="{ color: transaction.type === 'income' ? '#059669' : '#dc2626' }">
+                  {{ transaction.type === 'income' ? '+' : '-' }}${{ formatCurrency(transaction.amount) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Footer -->
-        <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px;">
-          <p style="margin: 0;">🎮 Gouvernement RP - Système de Gestion Comptable</p>
-          <p style="margin: 5px 0 0 0;">Rapport généré automatiquement • Confidentiel</p>
+        <div style="margin-top: 25px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 10px;">
+          <p style="margin: 0; font-weight: bold;">🎮 Gouvernement RP - Système de Gestion Comptable</p>
+          <p style="margin: 3px 0 0 0;">Rapport généré automatiquement • Confidentiel</p>
         </div>
       </div>
     </div>
@@ -469,6 +458,17 @@ const getBackupSummary = (backupData: any) => {
 }
 
 // Fonctions utilitaires pour PDF
+const getCurrentDate = () => {
+  return new Date().toLocaleDateString('fr-FR', { 
+    weekday: 'long',
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 const getMasseSalariale = (backupData: any) => {
   if (!backupData?.employees) return 0
   return backupData.employees
@@ -559,32 +559,47 @@ const exportBackup = async (backup: any) => {
     currentBackupForPdf.value = backup
     showPdfContent.value = true
     
-    // Attendre que le DOM se mette à jour
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Attendre que le DOM se mette à jour complètement
+    await new Promise(resolve => setTimeout(resolve, 500))
     
     const element = pdfContent.value
     if (!element) {
       throw new Error('Élément PDF non trouvé')
     }
     
+    // Rendre temporairement visible pour html2canvas
+    element.style.transform = 'translateX(0)'
+    element.style.visibility = 'visible'
+    
     const options = {
-      margin: 0.5,
+      margin: [10, 10, 10, 10] as [number, number, number, number],
       filename: `sauvegarde_${backup.id}_${new Date().toISOString().split('T')[0]}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg', quality: 1.0 },
       html2canvas: { 
         scale: 2,
         useCORS: true,
         letterRendering: true,
-        allowTaint: false
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: element.offsetWidth,
+        height: element.offsetHeight
       },
       jsPDF: { 
-        unit: 'in', 
+        unit: 'mm', 
         format: 'a4', 
-        orientation: 'portrait' 
+        orientation: 'portrait',
+        putOnlyUsedFonts: true,
+        floatPrecision: 16
       }
     }
     
+    // Générer le PDF
     await html2pdf().set(options).from(element).save()
+    
+    // Cacher à nouveau l'élément
+    element.style.transform = 'translateX(-100%)'
+    element.style.visibility = 'hidden'
     
     notificationStore.success(
       'Export PDF réussi',
