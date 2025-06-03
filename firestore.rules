@@ -37,25 +37,26 @@ service cloud.firestore {
     
     // 👤 USERS COLLECTION - Gestion des utilisateurs
     match /users/{userId} {
-      // Chaque utilisateur peut lire son propre document
+      // Lecture: utilisateur peut lire ses propres infos
       allow read: if isAuthenticated() && request.auth.uid == userId;
       
-      // Seuls les admins peuvent modifier les utilisateurs
-      allow write: if isAdmin();
+      // Écriture: permissions admin requises (sauf création)
+      allow write: if hasAdminPermission();
       
-      // Les managers peuvent lire tous les utilisateurs (pour assignations)
-      allow read: if isManagerOrAdmin();
+      // 🆕 CRÉATION: permettre la création lors de l'inscription
+      allow create: if request.auth != null && request.auth.uid == userId;
     }
     
     // 📝 PROFILES COLLECTION - Profils utilisateurs étendus
     match /profiles/{profileId} {
-      // Lecture: propriétaire du profil ou admin/manager
-      allow read: if isAuthenticated() && 
-                     (request.auth.uid == profileId || isManagerOrAdmin());
+      // Lecture: utilisateur authentifié peut lire son propre profil
+      allow read: if isAuthenticated() && request.auth.uid == profileId;
       
-      // Écriture: propriétaire du profil ou admin
-      allow write: if isAuthenticated() && 
-                      (request.auth.uid == profileId || isAdmin());
+      // Écriture: utilisateur peut créer/modifier son propre profil
+      allow write: if isAuthenticated() && request.auth.uid == profileId;
+      
+      // 🆕 CRÉATION: permettre la création lors de l'inscription
+      allow create: if request.auth != null && request.auth.uid == profileId;
     }
     
     // 💼 EMPLOYEES COLLECTION - Gestion des employés

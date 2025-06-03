@@ -85,6 +85,16 @@
               Pas encore de compte ? Contactez un administrateur pour obtenir vos accès.
             </p>
           </div>
+
+          <!-- Lien vers inscription -->
+          <div class="text-center">
+            <router-link 
+              to="/register" 
+              class="text-sm text-primary-600 hover:text-primary-500"
+            >
+              Pas encore inscrit ? Créer un compte RP
+            </router-link>
+          </div>
         </form>
       </div>
     </div>
