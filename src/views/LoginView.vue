@@ -86,13 +86,19 @@
             </p>
           </div>
 
-          <!-- Lien vers inscription -->
-          <div class="text-center">
+          <!-- Liens utiles -->
+          <div class="text-center space-y-2">
+            <router-link 
+              to="/reset-password" 
+              class="block text-sm text-primary-600 hover:text-primary-500"
+            >
+              🔐 Mot de passe oublié ?
+            </router-link>
             <router-link 
               to="/register" 
-              class="text-sm text-primary-600 hover:text-primary-500"
+              class="block text-sm text-primary-600 hover:text-primary-500"
             >
-              Pas encore inscrit ? Créer un compte RP
+              🆕 Pas encore inscrit ? Créer un compte RP
             </router-link>
           </div>
         </form>

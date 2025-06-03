@@ -23,6 +23,12 @@ const router = createRouter({
       meta: { public: true }
     },
     {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('@/views/ResetPasswordView.vue'),
+      meta: { public: true }
+    },
+    {
       path: '/recruitment',
       name: 'recruitment',
       component: () => import('@/views/RecruitmentView.vue'),
