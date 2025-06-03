@@ -272,7 +272,8 @@ const handleReset = async () => {
 onMounted(async () => {
   await Promise.all([
     accountingStore.fetchEmployees(),
-    accountingStore.fetchTransactions()
+    accountingStore.fetchTransactions(),
+    accountingStore.initializeBonusSystem()
   ])
 })
 </script> 
