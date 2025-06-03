@@ -658,30 +658,31 @@ const onDrop = (event: DragEvent, dropIndex: number) => {
 
 // === NOUVELLE FONCTION: Suppression ===
 const deleteConfig = async (config: BonusConfig) => {
-  notificationStore.confirm(
+  const confirmed = await notificationStore.confirm(
     'Supprimer la configuration',
-    `Êtes-vous sûr de vouloir supprimer la configuration pour le grade "${formatGradeName(config.grade)}" ? Cette action est irréversible !`,
-    async () => {
-      try {
-        await accountingStore.deleteBonusConfig(config.id)
-        
-        // Supprimer le grade de l'ordre personnalisé s'il y est
-        gradeOrder.value = gradeOrder.value.filter(grade => grade !== config.grade)
-        localStorage.setItem('bonus_grades_order', JSON.stringify(gradeOrder.value))
-        
-        notificationStore.success(
-          'Configuration supprimée',
-          `Grade "${formatGradeName(config.grade)}" supprimé avec succès`
-        )
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error)
-        notificationStore.error(
-          'Erreur de suppression',
-          'Impossible de supprimer la configuration'
-        )
-      }
-    }
+    `Êtes-vous sûr de vouloir supprimer la configuration pour le grade "${formatGradeName(config.grade)}" ? Cette action est irréversible !`
   )
+  
+  if (!confirmed) return
+  
+  try {
+    await accountingStore.deleteBonusConfig(config.id)
+    
+    // Supprimer le grade de l'ordre personnalisé s'il y est
+    gradeOrder.value = gradeOrder.value.filter(grade => grade !== config.grade)
+    localStorage.setItem('bonus_grades_order', JSON.stringify(gradeOrder.value))
+    
+    notificationStore.success(
+      'Configuration supprimée',
+      `Grade "${formatGradeName(config.grade)}" supprimé avec succès`
+    )
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+    notificationStore.error(
+      'Erreur de suppression',
+      'Impossible de supprimer la configuration'
+    )
+  }
 }
 
 // === NOUVELLE FONCTION: Restaurer l'ordre ===

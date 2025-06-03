@@ -1004,7 +1004,7 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function fetchBonusConfigs() {
     loading.value = true
     try {
-      const q = query(collection(db, 'bonusConfigs'), orderBy('created_at', 'desc'))
+      const q = query(collection(db, 'bonus_configs'), orderBy('created_at', 'desc'))
       const querySnapshot = await getDocs(q)
       
       bonusConfigs.value = querySnapshot.docs.map(doc => ({
@@ -1028,7 +1028,7 @@ export const useAccountingStore = defineStore('accounting', () => {
         updated_at: new Date().toISOString()
       }
       
-      const docRef = await addDoc(collection(db, 'bonusConfigs'), newConfig)
+      const docRef = await addDoc(collection(db, 'bonus_configs'), newConfig)
       bonusConfigs.value.unshift({ id: docRef.id, ...newConfig })
     } catch (err: any) {
       error.value = err.message
@@ -1047,7 +1047,7 @@ export const useAccountingStore = defineStore('accounting', () => {
         updated_at: new Date().toISOString()
       }
       
-      await updateDoc(doc(db, 'bonusConfigs', id), updatedData)
+      await updateDoc(doc(db, 'bonus_configs', id), updatedData)
       
       const index = bonusConfigs.value.findIndex(config => config.id === id)
       if (index !== -1) {
@@ -1068,7 +1068,7 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function deleteBonusConfig(id: string) {
     loading.value = true
     try {
-      await deleteDoc(doc(db, 'bonusConfigs', id))
+      await deleteDoc(doc(db, 'bonus_configs', id))
       bonusConfigs.value = bonusConfigs.value.filter(config => config.id !== id)
     } catch (err: any) {
       error.value = err.message
@@ -1247,6 +1247,42 @@ export const useAccountingStore = defineStore('accounting', () => {
     console.log('[STORE] Système de primes initialisé')
   }
 
+  // Réactiver un ancien employé
+  async function reactivateEmployee(id: string) {
+    loading.value = true
+    try {
+      await updateEmployee(id, {
+        is_active: true,
+        is_former: false,
+        termination_date: undefined,
+        termination_reason: undefined
+      })
+    } catch (err: any) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Remettre à zéro les heures de tous les employés actifs
+  async function resetAllHours() {
+    loading.value = true
+    try {
+      for (const employee of activeEmployees.value) {
+        await updateEmployee(employee.id, {
+          hours_worked: 0,
+          bonus_amount: 0
+        })
+      }
+    } catch (err: any) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     employees,
     transactions,
@@ -1299,6 +1335,8 @@ export const useAccountingStore = defineStore('accounting', () => {
     calculateEmployeeBonuses,
     migrateEmployeeGrades,
     createDefaultBonusConfigs,
-    initializeBonusSystem
+    initializeBonusSystem,
+    reactivateEmployee,
+    resetAllHours
   }
 }) 

@@ -91,33 +91,32 @@ export const useNotificationStore = defineStore('notifications', () => {
 
   // === HELPER POUR CONFIRMATIONS ===
   
-  const confirm = (
-    title: string, 
-    message: string, 
-    onConfirm: () => void, 
-    onCancel?: () => void
-  ) => {
-    return addNotification({
-      type: 'warning',
-      title,
-      message,
-      duration: 0, // Pas d'auto-suppression
-      actions: [
-        {
-          label: 'Confirmer',
-          style: 'primary',
-          action: () => {
-            onConfirm()
+  const confirm = (title: string, message: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const id = addNotification({
+        type: 'warning',
+        title,
+        message,
+        duration: 0, // Pas d'auto-suppression
+        actions: [
+          {
+            label: 'Confirmer',
+            style: 'primary',
+            action: () => {
+              removeNotification(id)
+              resolve(true)
+            }
+          },
+          {
+            label: 'Annuler',
+            style: 'secondary',
+            action: () => {
+              removeNotification(id)
+              resolve(false)
+            }
           }
-        },
-        {
-          label: 'Annuler',
-          style: 'secondary',
-          action: () => {
-            if (onCancel) onCancel()
-          }
-        }
-      ]
+        ]
+      })
     })
   }
 
