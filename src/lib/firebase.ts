@@ -62,6 +62,8 @@ export interface UserProfile {
   user_id: string
   created_at: string
   updated_at: string
+  // Informations d'authentification
+  email?: string
   // Informations personnelles RP
   first_name?: string
   last_name?: string
@@ -77,6 +79,9 @@ export interface UserProfile {
   identity_card_url?: string
   // Autres documents
   other_documents?: { name: string; url: string }[]
+  // Métadonnées d'inscription
+  is_verified?: boolean
+  registration_source?: string
 }
 
 export interface ServiceItem {

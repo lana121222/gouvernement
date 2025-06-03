@@ -39,19 +39,34 @@
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50">
+          <tr v-for="user in users" :key="user.id">
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex items-center">
                 <div class="h-10 w-10 flex-shrink-0">
-                  <div class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                  <!-- Photo de profil si disponible -->
+                  <div v-if="user.profile_photo_url" class="h-10 w-10 rounded-full overflow-hidden border-2 border-gray-200">
+                    <img 
+                      :src="user.profile_photo_url" 
+                      :alt="`Photo de ${user.display_name || user.email}`"
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div v-else class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
                     <span class="text-sm font-medium text-primary-600">
-                      {{ user.email.charAt(0).toUpperCase() }}
+                      {{ (user.display_name || user.email).charAt(0).toUpperCase() }}
                     </span>
                   </div>
                 </div>
                 <div class="ml-4">
-                  <div class="text-sm font-medium text-gray-900">{{ user.email }}</div>
-                  <div class="text-sm text-gray-500">ID: {{ user.id.substring(0, 8) }}...</div>
+                  <div class="text-sm font-medium text-gray-900">
+                    {{ user.display_name || user.email }}
+                  </div>
+                  <div class="text-sm text-gray-500">
+                    {{ user.email }}
+                  </div>
+                  <div class="text-xs text-gray-400">
+                    ID: {{ user.id.substring(0, 8) }}...
+                  </div>
                 </div>
               </div>
             </td>
@@ -78,7 +93,12 @@
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              {{ formatDate(user.created_at) }}
+              <div>
+                {{ formatDate(user.created_at) }}
+              </div>
+              <div v-if="user.registration_source" class="text-xs text-gray-500">
+                {{ user.registration_source === 'self_registration' ? 'Auto-inscription' : 'Manuel' }}
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <button
@@ -121,14 +141,25 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/users'
 import { useNotificationStore } from '@/stores/notifications'
-import type { User } from '@/lib/firebase'
+import { db, type User, type UserProfile } from '@/lib/firebase'
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import UserEditModal from './UserEditModal.vue'
 
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const notificationStore = useNotificationStore()
 
-const users = ref<User[]>([])
+// Interface étendue pour afficher les utilisateurs avec profils
+interface ExtendedUser extends User {
+  display_name?: string
+  profile_photo_url?: string
+  registration_source?: string
+  phone_number?: string
+  discord_username?: string
+  is_verified?: boolean
+}
+
+const users = ref<ExtendedUser[]>([])
 const loading = ref(false)
 const showEditModal = ref(false)
 const selectedUser = ref<User | null>(null)
@@ -161,17 +192,104 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const refreshUsers = async () => {
+// Fonction pour récupérer tous les utilisateurs (users + profiles)
+const fetchAllUsers = async () => {
   loading.value = true
   try {
-    users.value = await userStore.fetchUsers()
+    console.log('🔍 Récupération de tous les utilisateurs...')
+    
+    // Récupérer les utilisateurs de la collection "users"
+    const usersQuery = query(collection(db, 'users'), orderBy('created_at', 'desc'))
+    const usersSnapshot = await getDocs(usersQuery)
+    
+    // Récupérer les profils de la collection "profiles"
+    const profilesQuery = query(collection(db, 'profiles'), orderBy('created_at', 'desc'))
+    const profilesSnapshot = await getDocs(profilesQuery)
+    
+    // Convertir en maps pour faciliter la fusion
+    const usersMap = new Map<string, User>()
+    const profilesMap = new Map<string, UserProfile>()
+    
+    usersSnapshot.forEach((doc) => {
+      usersMap.set(doc.id, { id: doc.id, ...doc.data() } as User)
+    })
+    
+    profilesSnapshot.forEach((doc) => {
+      profilesMap.set(doc.id, { id: doc.id, ...doc.data() } as UserProfile)
+    })
+    
+    console.log(`📊 Trouvé ${usersMap.size} utilisateurs et ${profilesMap.size} profils`)
+    
+    // Fusionner les données et créer la liste finale
+    const combinedUsers: ExtendedUser[] = []
+    const processedIds = new Set<string>()
+    
+    // Traiter d'abord les utilisateurs avec leurs profils
+    usersMap.forEach((user, userId) => {
+      const profile = profilesMap.get(userId)
+      
+      const extendedUser: ExtendedUser = {
+        ...user,
+        display_name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : undefined,
+        profile_photo_url: profile?.profile_photo_url,
+        registration_source: profile?.registration_source,
+        phone_number: profile?.phone_number,
+        discord_username: profile?.discord_username,
+        is_verified: profile?.is_verified
+      }
+      
+      combinedUsers.push(extendedUser)
+      processedIds.add(userId)
+    })
+    
+    // Traiter les profils sans utilisateur (comptes créés par inscription)
+    profilesMap.forEach((profile, profileId) => {
+      if (!processedIds.has(profileId)) {
+        // Créer un utilisateur temporaire à partir du profil
+        const userFromProfile: ExtendedUser = {
+          id: profileId,
+          email: profile.email || 'Email non défini',
+          role: 'employee', // Rôle par défaut
+          permissions: [], // Aucune permission par défaut
+          created_at: profile.created_at,
+          display_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+          profile_photo_url: profile.profile_photo_url,
+          registration_source: profile.registration_source,
+          phone_number: profile.phone_number,
+          discord_username: profile.discord_username,
+          is_verified: profile.is_verified
+        }
+        
+        combinedUsers.push(userFromProfile)
+        processedIds.add(profileId)
+      }
+    })
+    
+    // Trier par date de création (plus récent en premier)
+    combinedUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    
+    users.value = combinedUsers
+    
+    console.log(`✅ ${combinedUsers.length} utilisateurs chargés au total`)
+    console.log('📋 Répartition:', combinedUsers.map(u => `${u.display_name || u.email} (${u.role})`))
+    
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement des utilisateurs:', error)
+    notificationStore.error(
+      'Erreur de chargement',
+      'Impossible de charger les utilisateurs. Vérifiez vos permissions.'
+    )
   } finally {
     loading.value = false
   }
 }
 
-const editUser = (user: User) => {
-  selectedUser.value = user
+const refreshUsers = async () => {
+  await fetchAllUsers()
+}
+
+const editUser = (user: ExtendedUser) => {
+  selectedUser.value = user as User
   showEditModal.value = true
 }
 
@@ -184,11 +302,11 @@ const handleUpdateUser = async (userData: Partial<User>) => {
   }
 }
 
-const deleteUser = async (user: User) => {
+const deleteUser = async (user: ExtendedUser) => {
   try {
     const confirmed = await notificationStore.confirm(
       'Supprimer l\'utilisateur',
-      `Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.email} ?`
+      `Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.display_name || user.email} ?`
     )
     if (!confirmed) return
 
@@ -202,6 +320,6 @@ const deleteUser = async (user: User) => {
 }
 
 onMounted(() => {
-  refreshUsers()
+  fetchAllUsers()
 })
 </script> 
