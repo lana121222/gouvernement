@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Debug - Gouvernement RP</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 10px; background: blue; color: white; border: none; cursor: pointer; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .error { background: #ffebee; color: red; }
+        .success { background: #e8f5e8; color: green; }
+        .info { background: #e3f2fd; color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Debug - Problème Services</h1>
+    
+    <div class="result info">
+        <strong>Instructions :</strong>
+        <ol>
+            <li>Ouvrez la console (F12)</li>
+            <li>Cliquez sur les boutons ci-dessous</li>
+            <li>Regardez les messages dans la console ET sur cette page</li>
+        </ol>
+    </div>
+    
+    <h2>Tests de Base</h2>
+    <button onclick="testConsole()">1. Test Console</button>
+    <button onclick="testJavaScript()">2. Test JavaScript</button>
+    <button onclick="testLocalStorage()">3. Test LocalStorage</button>
+    
+    <h2>Tests Vue.js</h2>
+    <button onclick="testVueDetection()">4. Test Détection Vue</button>
+    
+    <div id="results"></div>
+
+    <script>
+        console.log('🟢 TEST DEBUG: Script chargé')
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results')
+            const div = document.createElement('div')
+            div.className = `result ${type}`
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`
+            results.appendChild(div)
+            console.log(`[DEBUG] ${message}`)
+        }
+        
+        // Test 1: Console
+        function testConsole() {
+            console.log('🔴 TEST 1: Console fonctionne!')
+            console.error('🔴 TEST 1: Erreur de test (normal)')
+            console.warn('🔴 TEST 1: Warning de test (normal)')
+            addResult('✅ Test Console - Si vous voyez ce message, JavaScript fonctionne', 'success')
+        }
+        
+        // Test 2: JavaScript de base
+        function testJavaScript() {
+            try {
+                const test = { name: 'test', value: 123 }
+                const json = JSON.stringify(test)
+                addResult(`✅ Test JavaScript - JSON: ${json}`, 'success')
+                
+                // Test des promesses
+                Promise.resolve('Test Promise').then(result => {
+                    addResult(`✅ Test Promesses - ${result}`, 'success')
+                })
+            } catch (error) {
+                addResult(`❌ Test JavaScript échoué: ${error.message}`, 'error')
+            }
+        }
+        
+        // Test 3: LocalStorage
+        function testLocalStorage() {
+            try {
+                localStorage.setItem('test-debug', 'test-value')
+                const value = localStorage.getItem('test-debug')
+                if (value === 'test-value') {
+                    addResult('✅ Test LocalStorage - Fonctionne', 'success')
+                } else {
+                    addResult('❌ Test LocalStorage - Valeur incorrecte', 'error')
+                }
+                localStorage.removeItem('test-debug')
+            } catch (error) {
+                addResult(`❌ Test LocalStorage échoué: ${error.message}`, 'error')
+            }
+        }
+        
+        // Test 4: Détection Vue.js
+        function testVueDetection() {
+            // Vérifier si Vue est présent dans la page principale
+            if (window.parent && window.parent !== window) {
+                addResult('ℹ️ Exécution dans une iframe, vérification du parent...', 'info')
+                
+                try {
+                    if (window.parent.Vue || window.parent.__VUE__) {
+                        addResult('✅ Vue.js détecté dans la fenêtre parent', 'success')
+                    } else {
+                        addResult('❌ Vue.js NOT détecté dans la fenêtre parent', 'error')
+                    }
+                } catch (error) {
+                    addResult(`❌ Impossible d'accéder à la fenêtre parent: ${error.message}`, 'error')
+                }
+            } else {
+                addResult('ℹ️ Test local, vérification de l\'URL actuelle...', 'info')
+                addResult(`📍 URL actuelle: ${window.location.href}`, 'info')
+                
+                if (window.location.href.includes('localhost')) {
+                    addResult('✅ Serveur local détecté', 'success')
+                } else {
+                    addResult('⚠️ Pas sur localhost - assurez-vous que votre application Vue tourne', 'error')
+                }
+            }
+        }
+        
+        // Auto-test au chargement
+        window.addEventListener('load', () => {
+            addResult('🚀 Page de test chargée - Cliquez sur les boutons pour diagnostiquer', 'info')
+        })
+    </script>
+</body>
+</html> 

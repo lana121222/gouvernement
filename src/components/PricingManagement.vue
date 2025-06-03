@@ -9,6 +9,7 @@
       <button
         @click="showAddModal = true"
         class="btn-primary"
+        onclick="console.log('🔴 BOUTON CLIQUÉ! showAddModal devrait être true')"
       >
         Ajouter un service
       </button>
@@ -239,17 +240,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
 import type { ServiceItem } from '@/lib/firebase'
 import { useAuthStore } from '@/stores/auth'
 
+console.log('🟢 COMPOSANT PricingManagement.vue CHARGÉ')
+
 const accountingStore = useAccountingStore()
 const authStore = useAuthStore()
+
+console.log('🟢 Stores initialisés:', { accountingStore, authStore })
 
 // État des modals
 const showAddModal = ref(false)
 const editingService = ref<ServiceItem | null>(null)
+
+// DEBUG: Watcher pour voir les changements de showAddModal
+watch(showAddModal, (newValue) => {
+  console.log('🔵 showAddModal changé:', newValue)
+  console.log('🔵 Modal devrait être:', newValue ? 'VISIBLE' : 'CACHÉE')
+})
 
 // Données du formulaire
 const formData = ref({
