@@ -975,62 +975,88 @@ export const useAccountingStore = defineStore('accounting', () => {
     const defaultConfigs = [
       {
         grade: 'debutant' as const,
-        vente_percentage: 2.0,
+        vente_percentage: 2,
         prestation_percentage: 1.5,
-        min_amount_threshold: 50.0,
+        min_amount_threshold: 50,
         is_active: true
       },
       {
         grade: 'junior' as const,
-        vente_percentage: 3.0,
-        prestation_percentage: 2.0,
-        min_amount_threshold: 50.0,
+        vente_percentage: 3,
+        prestation_percentage: 2,
+        min_amount_threshold: 50,
         is_active: true
       },
       {
         grade: 'senior' as const,
-        vente_percentage: 4.0,
-        prestation_percentage: 3.0,
-        min_amount_threshold: 30.0,
+        vente_percentage: 4,
+        prestation_percentage: 3,
+        min_amount_threshold: 30,
         is_active: true
       },
       {
         grade: 'expert' as const,
-        vente_percentage: 5.0,
-        prestation_percentage: 4.0,
-        min_amount_threshold: 30.0,
+        vente_percentage: 5,
+        prestation_percentage: 4,
+        min_amount_threshold: 30,
         is_active: true
       },
       {
         grade: 'manager' as const,
-        vente_percentage: 6.0,
-        prestation_percentage: 5.0,
-        min_amount_threshold: 20.0,
+        vente_percentage: 6,
+        prestation_percentage: 5,
+        min_amount_threshold: 20,
         is_active: true
       },
       {
         grade: 'directeur' as const,
-        vente_percentage: 8.0,
-        prestation_percentage: 6.0,
-        min_amount_threshold: 10.0,
+        vente_percentage: 8,
+        prestation_percentage: 6,
+        min_amount_threshold: 10,
         is_active: true
       }
     ]
 
     try {
+      // Créer les configurations par défaut si elles n'existent pas
       for (const config of defaultConfigs) {
+        console.log('[STORE] Création config pour grade:', config.grade)
+        
         // Vérifier si la config existe déjà
-        const existingConfig = bonusConfigs.value.find(c => c.grade === config.grade)
-        if (!existingConfig) {
-          console.log(`[STORE] Création config pour grade: ${config.grade}`)
-          await addBonusConfig(config)
-        } else {
-          console.log(`[STORE] Config déjà existante pour grade: ${config.grade}`)
+        const existingQuery = query(
+          collection(db, 'bonus_configs'), 
+          where('grade', '==', config.grade)
+        )
+        const existingDocs = await getDocs(existingQuery)
+        
+        if (existingDocs.empty) {
+          const configData = {
+            ...config,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+          
+          await addDoc(collection(db, 'bonus_configs'), configData)
         }
       }
-      console.log('[STORE] Configurations par défaut créées avec succès')
-    } catch (error) {
-      console.error('[STORE] Erreur lors de la création des configs par défaut:', error)
+      
+      // Recharger les configurations
+      await fetchBonusConfigs()
+      
+    } catch (err: any) {
+      console.error('[STORE] Erreur lors de la création des configs par défaut:', err)
+      
+      if (err.code === 'permission-denied') {
+        console.warn('[STORE] ⚠️ Permissions insuffisantes pour créer les configurations de primes.')
+        console.warn('[STORE] 📝 Veuillez configurer les règles Firebase Security Rules pour la collection "bonus_configs"')
+        console.warn('[STORE] 🔗 Guide: Consultez GUIDE-REGLES-FIREBASE-PRIMES.md')
+        
+        // Ne pas bloquer l'application, juste afficher un avertissement
+        error.value = 'Permissions insuffisantes pour initialiser les configurations de primes. Consultez le guide de configuration des règles Firebase.'
+      } else {
+        error.value = err.message
+        throw err
+      }
     }
   }
 

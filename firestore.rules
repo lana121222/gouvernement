@@ -91,6 +91,15 @@ service cloud.firestore {
       allow write: if hasAccountingPermission();
     }
     
+    // 🎯 BONUS CONFIGS COLLECTION - Configurations de primes par grade
+    match /bonusConfigs/{bonusConfigId} {
+      // Lecture: tous les utilisateurs authentifiés (pour calculs de primes)
+      allow read: if isAuthenticated();
+      
+      // Écriture: permissions accounting requises (gestion des primes)
+      allow write: if hasAccountingPermission();
+    }
+    
     // 🗄️ ACCOUNTING BACKUPS COLLECTION - Sauvegardes comptabilité
     match /accounting_backups/{backupId} {
       // Seuls les admins peuvent gérer les sauvegardes
