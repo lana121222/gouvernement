@@ -546,7 +546,11 @@ const handleExportData = () => {
 }
 
 // Initialisation
-onMounted(() => {
-  accountingStore.fetchEmployees()
+onMounted(async () => {
+  // Charger les employés et initialiser le système de services
+  await Promise.all([
+    accountingStore.fetchEmployees(),
+    accountingStore.initializeServiceStore()
+  ])
 })
 </script> 

@@ -543,7 +543,16 @@ export const useAccountingStore = defineStore('accounting', () => {
     const startTime = activeShifts.value.get(employeeId)
     if (!startTime) return 0
     
-    return Math.round((new Date().getTime() - startTime.getTime()) / (1000 * 60))
+    // Retourner les minutes avec plus de précision
+    return Math.floor((new Date().getTime() - startTime.getTime()) / (1000 * 60))
+  }
+
+  // Obtenir la durée du service actuel en secondes (pour affichage temps réel)
+  function getCurrentShiftDurationInSeconds(employeeId: string): number {
+    const startTime = activeShifts.value.get(employeeId)
+    if (!startTime) return 0
+    
+    return Math.floor((new Date().getTime() - startTime.getTime()) / 1000)
   }
 
   // Obtenir le nom complet d'un employé par son ID
@@ -770,6 +779,7 @@ export const useAccountingStore = defineStore('accounting', () => {
     addServiceSale,
     isEmployeeOnDuty,
     getCurrentShiftDuration,
+    getCurrentShiftDurationInSeconds,
     initializeServiceStore,
     endAllActiveShifts,
     saveActiveShiftsState,

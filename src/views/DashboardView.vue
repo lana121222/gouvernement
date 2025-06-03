@@ -131,7 +131,7 @@
                     {{ getEmployeeName(employeeId) }}
                   </div>
                   <div class="text-xs text-green-600 font-medium">
-                    🟢 {{ formatDuration(accountingStore.getCurrentShiftDuration(employeeId)) }}
+                    �� {{ formatDuration(employeeId) }}
                   </div>
                   <div class="text-xs text-gray-500">
                     Depuis {{ formatTime(startTime) }}
@@ -315,14 +315,19 @@ const getEmployeeName = (employeeId: string) => {
   return accountingStore.getEmployeeName(employeeId)
 }
 
-const formatDuration = (minutes: number) => {
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
+const formatDuration = (employeeId: string) => {
+  const totalSeconds = accountingStore.getCurrentShiftDurationInSeconds(employeeId)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
   
   if (hours > 0) {
-    return `${hours}h ${mins}min`
+    return `${hours}h ${minutes}min`
+  } else if (minutes > 0) {
+    return `${minutes}min ${seconds}sec`
+  } else {
+    return `${seconds}sec`
   }
-  return `${mins}min`
 }
 
 const formatTime = (startTime: Date) => {
@@ -333,13 +338,20 @@ const formatTime = (startTime: Date) => {
 }
 
 const getTotalServiceTime = () => {
-  let totalMinutes = 0
+  let totalSeconds = 0
   
   for (const [employeeId] of activeShifts.value) {
-    totalMinutes += accountingStore.getCurrentShiftDuration(employeeId)
+    totalSeconds += accountingStore.getCurrentShiftDurationInSeconds(employeeId)
   }
   
-  return formatDuration(totalMinutes)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}min`
+  } else {
+    return `${minutes}min`
+  }
 }
 
 // Initialiser le store au montage

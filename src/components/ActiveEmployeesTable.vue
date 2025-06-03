@@ -86,36 +86,37 @@
               ${{ formatCurrency(employee.hourly_rate) }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <div class="space-y-1">
-                <!-- Heures de service automatiques (temps réel) -->
+              <!-- Affichage principal : Heures de service automatiques -->
+              <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="space-y-1">
                 <div class="flex items-center space-x-2">
-                  <div 
-                    :class="[
-                      'text-sm font-medium',
-                      accountingStore.isEmployeeOnDuty(employee.id) 
-                        ? 'text-green-600' 
-                        : 'text-gray-900'
-                    ]"
-                  >
+                  <div class="text-lg font-semibold text-green-600">
                     {{ formatServiceHours(employee.id) }}
                   </div>
-                  <div 
-                    v-if="accountingStore.isEmployeeOnDuty(employee.id)"
-                    class="w-2 h-2 bg-green-500 rounded-full animate-pulse"
-                  ></div>
+                  <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 </div>
-                
-                <!-- Heures manuelles (affichage secondaire) -->
-                <div class="text-xs text-gray-500">
-                  Manuel: 
+                <div class="text-xs text-green-500">
+                  Service actif depuis {{ getServiceStartTime(employee.id) }}
+                </div>
+                <!-- Heures manuelles en complément (si > 0) -->
+                <div v-if="employee.hours_worked > 0" class="text-xs text-gray-400">
+                  + Manuel: {{ employee.hours_worked }}h
+                </div>
+              </div>
+              
+              <!-- Si pas en service, afficher les heures manuelles -->
+              <div v-else class="space-y-1">
+                <div class="text-sm text-gray-600">
                   <input
                     :value="employee.hours_worked"
                     @change="updateHours(employee.id, $event)"
                     type="number"
                     min="0"
                     step="0.5"
-                    class="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
-                  />h
+                    class="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
+                  />h (manuel)
+                </div>
+                <div class="text-xs text-gray-400">
+                  Aucun service actif
                 </div>
               </div>
             </td>
@@ -130,22 +131,28 @@
               />
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <div class="space-y-1">
-                <!-- Total avec heures de service -->
-                <div 
-                  :class="[
-                    'text-lg font-medium',
-                    getTotalEarningsWithService(employee) > 0 ? 'text-green-600' : 'text-gray-900'
-                  ]"
-                >
+              <!-- Si employé en service, affichage prioritaire des gains de service -->
+              <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="space-y-1">
+                <div class="text-lg font-semibold text-green-600">
                   ${{ formatCurrency(getTotalEarningsWithService(employee)) }}
                 </div>
-                
-                <!-- Détail du calcul -->
-                <div class="text-xs text-gray-500">
+                <div class="text-xs text-green-500">
                   Service: ${{ formatCurrency(getServiceEarnings(employee.id, employee.hourly_rate)) }}
-                  <br>
-                  Manuel: ${{ formatCurrency(employee.total_earnings) }}
+                </div>
+                <div v-if="employee.hours_worked > 0 || employee.bonus_amount > 0" class="text-xs text-gray-400">
+                  <span v-if="employee.hours_worked > 0">Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}</span>
+                  <span v-if="employee.bonus_amount > 0" class="ml-1">+ Prime: ${{ formatCurrency(employee.bonus_amount) }}</span>
+                </div>
+              </div>
+              
+              <!-- Si pas en service, affichage normal -->
+              <div v-else class="space-y-1">
+                <div class="text-lg font-medium text-gray-900">
+                  ${{ formatCurrency(employee.total_earnings) }}
+                </div>
+                <div class="text-xs text-gray-500">
+                  Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}
+                  <span v-if="employee.bonus_amount > 0">+ Prime: ${{ formatCurrency(employee.bonus_amount) }}</span>
                 </div>
               </div>
             </td>
@@ -266,20 +273,33 @@ const updateBonus = (id: string, event: Event) => {
   emit('update-bonus', id, bonus)
 }
 
+// Obtenir l'heure de début du service
+const getServiceStartTime = (employeeId: string) => {
+  const startTime = accountingStore.activeShifts.get(employeeId)
+  if (!startTime) return 'N/A'
+  
+  return startTime.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 // Formatter les heures de service (temps réel)
 const formatServiceHours = (employeeId: string) => {
   if (!accountingStore.isEmployeeOnDuty(employeeId)) {
     return '0h 0min'
   }
   
-  const minutes = accountingStore.getCurrentShiftDuration(employeeId)
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
+  const totalSeconds = accountingStore.getCurrentShiftDurationInSeconds(employeeId)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
   
+  // Affichage heures et minutes uniquement
   if (hours > 0) {
-    return `${hours}h ${mins}min`
+    return `${hours}h ${minutes}min`
+  } else {
+    return `${minutes}min`
   }
-  return `${mins}min`
 }
 
 // Calculer les gains basés sur les heures de service
@@ -288,8 +308,8 @@ const getServiceEarnings = (employeeId: string, hourlyRate: number) => {
     return 0
   }
   
-  const minutes = accountingStore.getCurrentShiftDuration(employeeId)
-  const hours = minutes / 60
+  const totalSeconds = accountingStore.getCurrentShiftDurationInSeconds(employeeId)
+  const hours = totalSeconds / 3600 // Conversion précise en heures décimales
   
   return hours * hourlyRate
 }
