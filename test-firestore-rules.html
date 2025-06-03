@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Règles Firestore - ServiceItems</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 15px; font-size: 16px; cursor: pointer; }
+        .success { background: #4CAF50; color: white; }
+        .error { background: #f44336; color: white; }
+        .info { background: #2196F3; color: white; }
+        #results { margin-top: 20px; padding: 15px; border: 1px solid #ccc; min-height: 200px; }
+        .log { margin: 5px 0; padding: 5px; border-left: 3px solid #ccc; }
+        .log.success { border-left-color: #4CAF50; background: #f1f8e9; }
+        .log.error { border-left-color: #f44336; background: #ffebee; }
+        .log.info { border-left-color: #2196F3; background: #e3f2fd; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Règles Firestore - ServiceItems</h1>
+    
+    <p><strong>Instructions :</strong></p>
+    <ol>
+        <li>Cliquez sur "Tester Auth" pour vérifier votre connexion</li>
+        <li>Cliquez sur "Tester Lecture" pour voir si vous pouvez lire les serviceItems</li>
+        <li>Cliquez sur "Tester Écriture" pour voir si vous pouvez ajouter un serviceItem</li>
+    </ol>
+    
+    <button onclick="testAuth()" class="info">1. Tester Auth</button>
+    <button onclick="testRead()" class="info">2. Tester Lecture</button>
+    <button onclick="testWrite()" class="info">3. Tester Écriture</button>
+    <button onclick="clearResults()" style="background: #ff9800; color: white;">🗑️ Effacer</button>
+    
+    <div id="results"></div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs, 
+            query, 
+            orderBy 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword,
+            onAuthStateChanged
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Configuration Firebase (remplacez par vos vraies valeurs)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAv8N8QKY5LcQPwGp4AhD3pF9fDhPXoN2Y",
+            authDomain: "gouvernement-532ba.firebaseapp.com",
+            projectId: "gouvernement-532ba",
+            storageBucket: "gouvernement-532ba.firebasestorage.app",
+            messagingSenderId: "542842494848",
+            appId: "1:542842494848:web:66e7e85e2b9b20b9d4e61d"
+        };
+
+        // Initialiser Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Exposer les fonctions globalement
+        window.db = db;
+        window.auth = auth;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.query = query;
+        window.orderBy = orderBy;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+
+        console.log('🔥 Firebase initialisé');
+        
+        // Surveiller l'état d'authentification
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                log(`✅ Utilisateur connecté: ${user.email} (UID: ${user.uid})`, 'success');
+            } else {
+                log(`❌ Aucun utilisateur connecté`, 'error');
+            }
+        });
+    </script>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testAuth() {
+            log('🔍 Test d\'authentification...', 'info');
+            
+            try {
+                const user = window.auth.currentUser;
+                if (user) {
+                    log(`✅ Utilisateur connecté: ${user.email}`, 'success');
+                    log(`📋 UID: ${user.uid}`, 'info');
+                    log(`📧 Email vérifié: ${user.emailVerified}`, 'info');
+                    
+                    // Tester l'accès au document utilisateur
+                    log('🔍 Test d\'accès au document utilisateur...', 'info');
+                    const userDoc = await window.db.collection('users').doc(user.uid).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        log(`✅ Document utilisateur trouvé`, 'success');
+                        log(`📋 Rôle: ${userData.role || 'non défini'}`, 'info');
+                        log(`📋 Permissions: ${JSON.stringify(userData.permissions || [])}`, 'info');
+                    } else {
+                        log(`❌ Document utilisateur inexistant dans Firestore!`, 'error');
+                        log(`⚠️ Créez un document dans users/${user.uid} avec role: "admin"`, 'error');
+                    }
+                    
+                } else {
+                    log(`❌ Aucun utilisateur connecté`, 'error');
+                    log(`💡 Connectez-vous d'abord sur votre app`, 'info');
+                }
+                
+            } catch (error) {
+                log(`❌ Erreur auth: ${error.message}`, 'error');
+                console.error('Erreur auth:', error);
+            }
+        }
+
+        async function testRead() {
+            log('📖 Test de lecture des serviceItems...', 'info');
+            
+            try {
+                const q = window.query(
+                    window.collection(window.db, 'serviceItems'), 
+                    window.orderBy('category'), 
+                    window.orderBy('name')
+                );
+                
+                const querySnapshot = await window.getDocs(q);
+                
+                log(`✅ Lecture réussie! ${querySnapshot.docs.length} services trouvés`, 'success');
+                
+                querySnapshot.docs.forEach((doc, index) => {
+                    const data = doc.data();
+                    log(`📄 Service ${index + 1}: ${data.name} (${data.category}) - $${data.price}`, 'info');
+                });
+                
+                if (querySnapshot.docs.length === 0) {
+                    log(`ℹ️ Aucun service dans la base de données`, 'info');
+                }
+                
+            } catch (error) {
+                log(`❌ Erreur lecture: ${error.code} - ${error.message}`, 'error');
+                if (error.code === 'permission-denied') {
+                    log(`🔒 PROBLÈME DE PERMISSIONS: Vérifiez les règles Firestore!`, 'error');
+                }
+                console.error('Erreur lecture:', error);
+            }
+        }
+
+        async function testWrite() {
+            log('✍️ Test d\'écriture d\'un serviceItem...', 'info');
+            
+            try {
+                const testService = {
+                    name: `Test Service ${Date.now()}`,
+                    category: 'vente',
+                    price: 99.99,
+                    description: 'Service de test pour vérifier les règles',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log(`📝 Tentative d'ajout: ${testService.name}`, 'info');
+                
+                const docRef = await window.addDoc(
+                    window.collection(window.db, 'serviceItems'), 
+                    testService
+                );
+                
+                log(`✅ ÉCRITURE RÉUSSIE! ID: ${docRef.id}`, 'success');
+                log(`🎉 Les règles Firestore permettent l'ajout de services!`, 'success');
+                
+                // Re-tester la lecture pour voir le nouveau service
+                setTimeout(() => {
+                    log(`🔄 Re-test de lecture pour voir le nouveau service...`, 'info');
+                    testRead();
+                }, 1000);
+                
+            } catch (error) {
+                log(`❌ ERREUR ÉCRITURE: ${error.code} - ${error.message}`, 'error');
+                
+                if (error.code === 'permission-denied') {
+                    log(`🔒 PROBLÈME CRITIQUE: Les règles Firestore bloquent l'écriture!`, 'error');
+                    log(`📋 Solutions possibles:`, 'error');
+                    log(`   1. Déployez les nouvelles règles Firestore`, 'error');
+                    log(`   2. Vérifiez que votre utilisateur a le rôle "admin" ou "manager"`, 'error');
+                    log(`   3. Vérifiez que votre utilisateur a la permission "accounting"`, 'error');
+                } else if (error.code === 'unauthenticated') {
+                    log(`🔐 ERREUR AUTH: Connectez-vous d'abord!`, 'error');
+                }
+                
+                console.error('Erreur écriture:', error);
+            }
+        }
+
+        // Log initial
+        log('🚀 Test des règles Firestore initialisé', 'info');
+        log('👆 Cliquez sur les boutons ci-dessus pour tester', 'info');
+    </script>
+</body>
+</html> 
