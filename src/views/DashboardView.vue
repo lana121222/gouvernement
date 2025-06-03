@@ -59,7 +59,10 @@
         </div>
 
         <!-- Profil -->
-        <div class="card">
+        <router-link
+          to="/profile"
+          class="card hover:shadow-md transition-shadow duration-200 cursor-pointer"
+        >
           <div class="flex items-center">
             <div class="flex-shrink-0">
               <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -73,7 +76,7 @@
               <p class="text-lg font-semibold text-gray-900">Mes informations</p>
             </div>
           </div>
-        </div>
+        </router-link>
 
         <!-- Notifications -->
         <div class="card">

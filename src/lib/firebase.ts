@@ -52,4 +52,25 @@ export interface User {
   role: 'admin' | 'manager' | 'employee' | 'viewer'
   permissions: string[]
   created_at: string
+}
+
+export interface UserProfile {
+  id: string
+  user_id: string
+  created_at: string
+  updated_at: string
+  // Informations personnelles RP
+  first_name?: string
+  last_name?: string
+  phone_number?: string
+  birth_date?: string
+  postal_address?: string
+  discord_username?: string
+  // Documents (URLs des images)
+  driving_license_url?: string
+  ppa_url?: string
+  identity_card_url?: string
+  passport_url?: string
+  // Autres documents
+  other_documents?: { name: string; url: string }[]
 } 

@@ -7,9 +7,20 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // 👥 Admins peuvent gérer tous les utilisateurs
+    // 📝 Profils utilisateur - chaque utilisateur peut gérer son propre profil
+    match /profiles/{profileId} {
+      allow read, write: if request.auth != null && request.auth.uid == profileId;
+    }
+    
+    // 👥 Admins peuvent gérer tous les utilisateurs et profils
     match /users/{userId} {
       allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /profiles/{profileId} {
+      allow read: if request.auth != null && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
