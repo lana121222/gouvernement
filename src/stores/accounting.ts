@@ -362,28 +362,74 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function resetAccounting() {
     loading.value = true
     try {
-      // Créer une sauvegarde avant de reset
+      // Créer une sauvegarde COMPLÈTE avant de reset avec TOUTES les données
       const backupData = {
-        employees: employees.value,
-        transactions: transactions.value,
-        serviceTransactions: serviceTransactions.value,
+        // TOUTES les données employés avec gains complets
+        employees: employees.value.map(emp => ({
+          ...emp,
+          total_earnings: emp.total_earnings || 0,
+          hours_worked: emp.hours_worked || 0,
+          bonus_amount: emp.bonus_amount || 0,
+          grade: emp.grade || 'débutant'
+        })),
+        
+        // TOUTES les transactions (revenus et dépenses)
+        transactions: transactions.value.map(t => ({
+          ...t,
+          amount: t.amount || 0,
+          type: t.type,
+          description: t.description || '',
+          category: t.category || '',
+          created_at: t.created_at
+        })),
+        
+        // TOUTES les transactions de service
+        serviceTransactions: serviceTransactions.value.map(st => ({
+          ...st,
+          amount: st.amount || 0,
+          created_at: st.created_at
+        })),
+        
+        // Totaux financiers COMPLETS au moment de la sauvegarde
         totalIncome: totalIncome.value,
         totalExpenses: totalExpenses.value,
         balance: balance.value,
-        date: new Date().toISOString(),
-        type: 'auto',
-        description: 'Sauvegarde automatique avant réinitialisation'
+        totalPayroll: totalPayroll.value,
+        
+        // Statistiques détaillées
+        statistics: {
+          totalEmployees: employees.value.length,
+          activeEmployees: activeEmployees.value.length,
+          formerEmployees: formerEmployees.value.length,
+          totalTransactions: transactions.value.length,
+          incomeTransactions: transactions.value.filter(t => t.type === 'income').length,
+          expenseTransactions: transactions.value.filter(t => t.type === 'expense').length,
+          totalServiceTransactions: serviceTransactions.value.length,
+          averageEmployeeEarnings: activeEmployees.value.length > 0 
+            ? totalPayroll.value / activeEmployees.value.length 
+            : 0
+        },
+        
+        // Métadonnées de la sauvegarde
+        metadata: {
+          created_at: new Date().toISOString(),
+          type: 'auto',
+          description: 'Sauvegarde automatique avant réinitialisation - Données complètes',
+          version: '1.0',
+          user_count: employees.value.length,
+          transaction_count: transactions.value.length
+        }
       }
 
-      // Sauvegarder dans une collection d'historique
+      // Sauvegarder dans la collection avec toutes les données
       await addDoc(collection(db, 'accounting_backups'), {
         backup_data: backupData,
         created_at: new Date().toISOString(),
         type: 'auto',
-        description: 'Sauvegarde automatique avant réinitialisation'
+        description: 'Sauvegarde automatique avant réinitialisation - Données complètes'
       })
 
-      console.log('[STORE] ✅ Sauvegarde automatique créée avant réinitialisation')
+      console.log('[STORE] ✅ Sauvegarde COMPLÈTE créée avant réinitialisation')
 
       // Supprimer toutes les transactions
       const transactionsQuery = query(collection(db, 'transactions'))
@@ -1328,25 +1374,71 @@ export const useAccountingStore = defineStore('accounting', () => {
     loading.value = true
     try {
       const backupData = {
-        employees: employees.value,
-        transactions: transactions.value,
-        serviceTransactions: serviceTransactions.value,
+        // TOUTES les données employés avec gains complets
+        employees: employees.value.map(emp => ({
+          ...emp,
+          total_earnings: emp.total_earnings || 0,
+          hours_worked: emp.hours_worked || 0,
+          bonus_amount: emp.bonus_amount || 0,
+          grade: emp.grade || 'débutant'
+        })),
+        
+        // TOUTES les transactions (revenus et dépenses)
+        transactions: transactions.value.map(t => ({
+          ...t,
+          amount: t.amount || 0,
+          type: t.type,
+          description: t.description || '',
+          category: t.category || '',
+          created_at: t.created_at
+        })),
+        
+        // TOUTES les transactions de service
+        serviceTransactions: serviceTransactions.value.map(st => ({
+          ...st,
+          amount: st.amount || 0,
+          created_at: st.created_at
+        })),
+        
+        // Totaux financiers COMPLETS au moment de la sauvegarde
         totalIncome: totalIncome.value,
         totalExpenses: totalExpenses.value,
         balance: balance.value,
-        date: new Date().toISOString(),
-        type: 'manual',
-        description: description || 'Sauvegarde manuelle'
+        totalPayroll: totalPayroll.value,
+        
+        // Statistiques détaillées
+        statistics: {
+          totalEmployees: employees.value.length,
+          activeEmployees: activeEmployees.value.length,
+          formerEmployees: formerEmployees.value.length,
+          totalTransactions: transactions.value.length,
+          incomeTransactions: transactions.value.filter(t => t.type === 'income').length,
+          expenseTransactions: transactions.value.filter(t => t.type === 'expense').length,
+          totalServiceTransactions: serviceTransactions.value.length,
+          averageEmployeeEarnings: activeEmployees.value.length > 0 
+            ? totalPayroll.value / activeEmployees.value.length 
+            : 0
+        },
+        
+        // Métadonnées de la sauvegarde
+        metadata: {
+          created_at: new Date().toISOString(),
+          type: 'manual',
+          description: description || 'Sauvegarde manuelle - Données complètes',
+          version: '1.0',
+          user_count: employees.value.length,
+          transaction_count: transactions.value.length
+        }
       }
 
       const docRef = await addDoc(collection(db, 'accounting_backups'), {
         backup_data: backupData,
         created_at: new Date().toISOString(),
         type: 'manual',
-        description: description || 'Sauvegarde manuelle'
+        description: description || 'Sauvegarde manuelle - Données complètes'
       })
 
-      console.log('[STORE] ✅ Sauvegarde manuelle créée:', docRef.id)
+      console.log('[STORE] ✅ Sauvegarde manuelle COMPLÈTE créée:', docRef.id)
       
       // Rafraîchir la liste des sauvegardes
       await fetchBackups()
