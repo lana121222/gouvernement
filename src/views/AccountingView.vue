@@ -270,10 +270,13 @@ const handleReset = async () => {
 }
 
 onMounted(async () => {
+  console.log('🎯 Initialisation AccountingView - onglet actuel:', activeTab.value)
   await Promise.all([
     accountingStore.fetchEmployees(),
     accountingStore.fetchTransactions(),
-    accountingStore.initializeBonusSystem()
+    accountingStore.initializeBonusSystem(),
+    accountingStore.initializeServiceStore()
   ])
+  console.log('🎯 Système de bonus initialisé, configs:', accountingStore.bonusConfigs)
 })
 </script> 
