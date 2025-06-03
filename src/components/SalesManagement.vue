@@ -12,7 +12,13 @@
     <div class="card">
       <h4 class="text-lg font-medium text-gray-900 mb-4">Ajouter une vente ou prestation</h4>
       
-      <form @submit.prevent="submitSale" class="space-y-4">
+      <form 
+        @submit.prevent="submitSale" 
+        class="space-y-4"
+        data-dashlane-rid=""
+        data-form-type=""
+        autocomplete="off"
+      >
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Sélection employé -->
           <div>
@@ -24,6 +30,8 @@
               v-model="selectedEmployeeId"
               required
               class="input-field"
+              autocomplete="off"
+              data-dashlane-rid=""
             >
               <option value="">Sélectionner un employé</option>
               <option
@@ -47,6 +55,8 @@
               @change="resetForm"
               required
               class="input-field"
+              autocomplete="off"
+              data-dashlane-rid=""
             >
               <option value="">Sélectionner le type</option>
               <option value="vente">💰 Vente</option>
@@ -66,6 +76,8 @@
             @change="handleServiceChange"
             required
             class="input-field"
+            autocomplete="off"
+            data-dashlane-rid=""
           >
             <option value="">Sélectionner {{ selectedType === 'vente' ? 'un produit' : 'un service' }}</option>
             <option
@@ -92,6 +104,8 @@
               required
               placeholder="Ex: Réparation spéciale"
               class="input-field"
+              autocomplete="off"
+              data-dashlane-rid=""
             />
           </div>
           <div>
@@ -107,6 +121,8 @@
               required
               placeholder="0.00"
               class="input-field"
+              autocomplete="off"
+              data-dashlane-rid=""
             />
           </div>
         </div>
@@ -122,6 +138,8 @@
             rows="2"
             placeholder="Détails supplémentaires..."
             class="input-field"
+            autocomplete="off"
+            data-dashlane-rid=""
           ></textarea>
         </div>
 

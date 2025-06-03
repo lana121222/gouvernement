@@ -131,7 +131,13 @@
             {{ editingService ? 'Modifier le service' : 'Ajouter un service' }}
           </h3>
           
-          <form @submit.prevent="submitForm" class="space-y-4">
+          <form 
+            @submit.prevent="submitForm" 
+            class="space-y-4"
+            data-dashlane-rid=""
+            data-form-type=""
+            autocomplete="off"
+          >
             <div>
               <label for="serviceName" class="block text-sm font-medium text-gray-700 mb-1">
                 Nom du service/produit
@@ -143,6 +149,8 @@
                 required
                 placeholder="Ex: Réparation moteur"
                 class="input-field"
+                autocomplete="off"
+                data-dashlane-rid=""
               />
             </div>
             
@@ -155,6 +163,8 @@
                 v-model="formData.category"
                 required
                 class="input-field"
+                autocomplete="off"
+                data-dashlane-rid=""
               >
                 <option value="">Sélectionner une catégorie</option>
                 <option value="vente">💰 Vente</option>
@@ -175,6 +185,8 @@
                 required
                 placeholder="0.00"
                 class="input-field"
+                autocomplete="off"
+                data-dashlane-rid=""
               />
             </div>
             
@@ -188,6 +200,8 @@
                 rows="3"
                 placeholder="Description du service..."
                 class="input-field"
+                autocomplete="off"
+                data-dashlane-rid=""
               ></textarea>
             </div>
             
