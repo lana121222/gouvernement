@@ -93,11 +93,11 @@
 
       <!-- Navigation des sections -->
       <div class="mb-8">
-        <nav class="flex space-x-8">
+        <nav class="flex space-x-8 overflow-x-auto">
           <button
             @click="activeTab = 'employees'"
             :class="[
-              'py-2 px-1 border-b-2 font-medium text-sm',
+              'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
               activeTab === 'employees'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -106,9 +106,42 @@
             Employés actifs ({{ accountingStore.activeEmployees.length }})
           </button>
           <button
+            @click="activeTab = 'services'"
+            :class="[
+              'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
+              activeTab === 'services'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            Services
+          </button>
+          <button
+            @click="activeTab = 'sales'"
+            :class="[
+              'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
+              activeTab === 'sales'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            Ventes & Prestations
+          </button>
+          <button
+            @click="activeTab = 'pricing'"
+            :class="[
+              'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
+              activeTab === 'pricing'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            Gestion des prix
+          </button>
+          <button
             @click="activeTab = 'transactions'"
             :class="[
-              'py-2 px-1 border-b-2 font-medium text-sm',
+              'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
               activeTab === 'transactions'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -119,7 +152,7 @@
           <button
             @click="activeTab = 'former'"
             :class="[
-              'py-2 px-1 border-b-2 font-medium text-sm',
+              'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
               activeTab === 'former'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -133,6 +166,18 @@
       <!-- Contenu des onglets -->
       <div v-if="activeTab === 'employees'">
         <EmployeesList />
+      </div>
+
+      <div v-if="activeTab === 'services'">
+        <ServicesManagement />
+      </div>
+
+      <div v-if="activeTab === 'sales'">
+        <SalesManagement />
+      </div>
+
+      <div v-if="activeTab === 'pricing'">
+        <PricingManagement />
       </div>
 
       <div v-if="activeTab === 'transactions'">
@@ -188,6 +233,9 @@ import AppLayout from '@/components/AppLayout.vue'
 import EmployeesList from '@/components/EmployeesList.vue'
 import TransactionsList from '@/components/TransactionsList.vue'
 import FormerEmployeesList from '@/components/FormerEmployeesList.vue'
+import ServicesManagement from '@/components/ServicesManagement.vue'
+import SalesManagement from '@/components/SalesManagement.vue'
+import PricingManagement from '@/components/PricingManagement.vue'
 
 const accountingStore = useAccountingStore()
 const activeTab = ref('employees')

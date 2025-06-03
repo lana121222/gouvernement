@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { db, type Employee, type Transaction } from '@/lib/firebase'
+import { db, type Employee, type Transaction, type ServiceItem, type ServiceTransaction } from '@/lib/firebase'
 import { 
   collection, 
   doc, 
@@ -17,6 +17,9 @@ import {
 export const useAccountingStore = defineStore('accounting', () => {
   const employees = ref<Employee[]>([])
   const transactions = ref<Transaction[]>([])
+  const serviceItems = ref<ServiceItem[]>([])
+  const serviceTransactions = ref<ServiceTransaction[]>([])
+  const activeShifts = ref<Map<string, Date>>(new Map()) // employee_id -> start_time
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -298,9 +301,259 @@ export const useAccountingStore = defineStore('accounting', () => {
     }
   }
 
+  // Fonctions d'initialisation
+  async function initializeStore() {
+    await Promise.all([
+      fetchEmployees(),
+      fetchTransactions()
+    ])
+  }
+
+  // === GESTION DES SERVICES ET PRESTATIONS ===
+  
+  // Charger les services/prestations
+  async function fetchServiceItems() {
+    loading.value = true
+    try {
+      const q = query(collection(db, 'serviceItems'), orderBy('category'), orderBy('name'))
+      const querySnapshot = await getDocs(q)
+      
+      serviceItems.value = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ServiceItem[]
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Ajouter un service/prestation
+  async function addServiceItem(itemData: Omit<ServiceItem, 'id' | 'created_at' | 'updated_at'>) {
+    loading.value = true
+    try {
+      const newItem = {
+        ...itemData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      
+      const docRef = await addDoc(collection(db, 'serviceItems'), newItem)
+      const itemWithId = { id: docRef.id, ...newItem }
+      serviceItems.value.push(itemWithId)
+      
+      // Trier après ajout
+      serviceItems.value.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category)
+        }
+        return a.name.localeCompare(b.name)
+      })
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Modifier un service/prestation
+  async function updateServiceItem(id: string, updates: Partial<ServiceItem>) {
+    loading.value = true
+    try {
+      const updatedData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+      
+      await updateDoc(doc(db, 'serviceItems', id), updatedData)
+      
+      const index = serviceItems.value.findIndex(item => item.id === id)
+      if (index !== -1) {
+        serviceItems.value[index] = {
+          ...serviceItems.value[index],
+          ...updatedData
+        }
+      }
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Supprimer un service/prestation
+  async function deleteServiceItem(id: string) {
+    loading.value = true
+    try {
+      await deleteDoc(doc(db, 'serviceItems', id))
+      serviceItems.value = serviceItems.value.filter(item => item.id !== id)
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Charger les transactions de service
+  async function fetchServiceTransactions() {
+    loading.value = true
+    try {
+      const q = query(collection(db, 'serviceTransactions'), orderBy('created_at', 'desc'))
+      const querySnapshot = await getDocs(q)
+      
+      serviceTransactions.value = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ServiceTransaction[]
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Prise de service
+  async function startShift(employeeId: string, employeeName: string) {
+    loading.value = true
+    try {
+      const now = new Date()
+      const serviceTransaction = {
+        type: 'prise_service' as const,
+        employee_id: employeeId,
+        employee_name: employeeName,
+        service_name: 'Prise de service',
+        amount: 0,
+        created_at: now.toISOString()
+      }
+      
+      const docRef = await addDoc(collection(db, 'serviceTransactions'), serviceTransaction)
+      serviceTransactions.value.unshift({ id: docRef.id, ...serviceTransaction })
+      
+      // Marquer comme en service
+      activeShifts.value.set(employeeId, now)
+      
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Fin de service
+  async function endShift(employeeId: string, employeeName: string) {
+    loading.value = true
+    try {
+      const startTime = activeShifts.value.get(employeeId)
+      const endTime = new Date()
+      const shiftDuration = startTime ? Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) : 0
+      
+      const serviceTransaction = {
+        type: 'fin_service' as const,
+        employee_id: employeeId,
+        employee_name: employeeName,
+        service_name: 'Fin de service',
+        amount: 0,
+        shift_duration: shiftDuration,
+        created_at: endTime.toISOString()
+      }
+      
+      const docRef = await addDoc(collection(db, 'serviceTransactions'), serviceTransaction)
+      serviceTransactions.value.unshift({ id: docRef.id, ...serviceTransaction })
+      
+      // Retirer du service actif
+      activeShifts.value.delete(employeeId)
+      
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Ajouter une vente/prestation
+  async function addServiceSale(
+    employeeId: string, 
+    employeeName: string, 
+    serviceItemId: string | null, 
+    serviceName: string, 
+    amount: number, 
+    type: 'vente' | 'prestation',
+    customDescription?: string
+  ) {
+    loading.value = true
+    try {
+      const serviceTransaction = {
+        type: type,
+        employee_id: employeeId,
+        employee_name: employeeName,
+        service_item_id: serviceItemId,
+        service_name: serviceName,
+        amount: amount,
+        custom_description: customDescription,
+        created_at: new Date().toISOString()
+      }
+      
+      const docRef = await addDoc(collection(db, 'serviceTransactions'), serviceTransaction)
+      serviceTransactions.value.unshift({ id: docRef.id, ...serviceTransaction })
+      
+      // Ajouter aussi comme transaction revenue
+      await addTransaction({
+        type: 'income',
+        amount: amount,
+        description: `${type === 'vente' ? 'Vente' : 'Prestation'}: ${serviceName} (${employeeName})`,
+        category: type === 'vente' ? 'Ventes' : 'Prestations',
+        employee_id: employeeId
+      })
+      
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Vérifier si un employé est en service
+  function isEmployeeOnDuty(employeeId: string): boolean {
+    return activeShifts.value.has(employeeId)
+  }
+
+  // Obtenir la durée du service actuel
+  function getCurrentShiftDuration(employeeId: string): number {
+    const startTime = activeShifts.value.get(employeeId)
+    if (!startTime) return 0
+    
+    return Math.round((new Date().getTime() - startTime.getTime()) / (1000 * 60))
+  }
+
+  // Services par catégorie
+  const servicesByCategory = computed(() => {
+    const grouped: Record<string, ServiceItem[]> = {}
+    
+    serviceItems.value.forEach(item => {
+      if (!grouped[item.category]) {
+        grouped[item.category] = []
+      }
+      grouped[item.category].push(item)
+    })
+    
+    return grouped
+  })
+
+  // Fonctions d'initialisation mise à jour
+  async function initializeServiceStore() {
+    await Promise.all([
+      fetchServiceItems(),
+      fetchServiceTransactions()
+    ])
+  }
+
   return {
     employees,
     transactions,
+    serviceItems,
+    serviceTransactions,
+    activeShifts,
     loading,
     error,
     activeEmployees,
@@ -309,6 +562,7 @@ export const useAccountingStore = defineStore('accounting', () => {
     totalExpenses,
     balance,
     totalPayroll,
+    servicesByCategory,
     fetchEmployees,
     addEmployee,
     updateEmployee,
@@ -318,6 +572,18 @@ export const useAccountingStore = defineStore('accounting', () => {
     fetchTransactions,
     addTransaction,
     deleteTransaction,
-    resetAccounting
+    resetAccounting,
+    initializeStore,
+    fetchServiceItems,
+    addServiceItem,
+    updateServiceItem,
+    deleteServiceItem,
+    fetchServiceTransactions,
+    startShift,
+    endShift,
+    addServiceSale,
+    isEmployeeOnDuty,
+    getCurrentShiftDuration,
+    initializeServiceStore
   }
 }) 

@@ -72,4 +72,27 @@ export interface UserProfile {
   identity_card_url?: string
   // Autres documents
   other_documents?: { name: string; url: string }[]
+}
+
+export interface ServiceItem {
+  id: string
+  name: string
+  price: number
+  category: 'vente' | 'prestation' | 'service'
+  description?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ServiceTransaction {
+  id: string
+  created_at: string
+  type: 'prise_service' | 'fin_service' | 'vente' | 'prestation'
+  employee_id: string
+  employee_name: string
+  service_item_id?: string // Pour les ventes/prestations
+  service_name: string
+  amount: number
+  custom_description?: string // Pour "autre"
+  shift_duration?: number // En minutes pour fin de service
 } 
