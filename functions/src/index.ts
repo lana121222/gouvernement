@@ -28,14 +28,13 @@ export const deleteUserCompletely = functions.https.onCall(async (data, context)
   }
 
   const { userId } = data;
-  
   if (!userId) {
     throw new functions.https.HttpsError('invalid-argument', 'L\'ID utilisateur est requis.');
   }
 
   try {
     console.log(`🗑️ Début de la suppression complète de l'utilisateur ${userId}`);
-    
+
     // 1. Supprimer de Firebase Authentication
     try {
       await auth.deleteUser(userId);
@@ -129,7 +128,7 @@ export const deleteUserCompletely = functions.https.onCall(async (data, context)
     }
 
     console.log(`🎉 Suppression complète terminée avec succès pour ${userId}`);
-    
+
     return {
       success: true,
       message: `Utilisateur ${userId} supprimé complètement avec succès. Le compte Firebase Auth et toutes les données associées ont été supprimés.`,
@@ -138,11 +137,7 @@ export const deleteUserCompletely = functions.https.onCall(async (data, context)
 
   } catch (error: any) {
     console.error(`💥 Erreur lors de la suppression complète de l'utilisateur ${userId}:`, error);
-    
-    throw new functions.https.HttpsError(
-      'internal',
-      `Erreur lors de la suppression de l'utilisateur: ${error.message}`
-    );
+    throw new functions.https.HttpsError('internal', `Erreur lors de la suppression de l'utilisateur: ${error.message}`);
   }
 });
 
@@ -189,7 +184,6 @@ export const checkUserExists = functions.https.onCall(async (data, context) => {
   }
 
   const { userId } = data;
-  
   if (!userId) {
     throw new functions.https.HttpsError('invalid-argument', 'L\'ID utilisateur est requis.');
   }
