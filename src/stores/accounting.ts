@@ -318,7 +318,8 @@ export const useAccountingStore = defineStore('accounting', () => {
     
     try {
       console.log('[STORE] Requête Firestore vers collection serviceItems...')
-      const q = query(collection(db, 'serviceItems'), orderBy('category'), orderBy('name'))
+      // CORRECTION: Simplifier la requête pour éviter l'index composite
+      const q = query(collection(db, 'serviceItems'), orderBy('created_at', 'desc'))
       const querySnapshot = await getDocs(q)
       
       console.log('[STORE] ✅ Requête réussie! Documents trouvés:', querySnapshot.docs.length)
@@ -328,7 +329,15 @@ export const useAccountingStore = defineStore('accounting', () => {
         ...doc.data()
       })) as ServiceItem[]
       
-      console.log('[STORE] Services chargés:', serviceItems.value.length)
+      // Trier côté client pour éviter l'index Firebase
+      serviceItems.value.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category)
+        }
+        return a.name.localeCompare(b.name)
+      })
+      
+      console.log('[STORE] Services chargés et triés:', serviceItems.value.length)
       console.log('[STORE] Détail des services:', serviceItems.value.map(s => ({ id: s.id, name: s.name, category: s.category })))
       
     } catch (err: any) {
