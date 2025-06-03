@@ -350,13 +350,21 @@ export const useAccountingStore = defineStore('accounting', () => {
     console.log('[STORE] Services actuels avant ajout:', serviceItems.value.length)
     
     try {
-      const newItem = {
-        ...itemData,
+      // CORRECTION: Filtrer les valeurs undefined pour Firebase
+      const newItem: any = {
+        name: itemData.name,
+        category: itemData.category,
+        price: itemData.price,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
       
-      console.log('[STORE] Données à ajouter à Firebase:', newItem)
+      // Ajouter description seulement si elle n'est pas undefined ou vide
+      if (itemData.description && itemData.description.trim()) {
+        newItem.description = itemData.description.trim()
+      }
+      
+      console.log('[STORE] Données à ajouter à Firebase (sans undefined):', newItem)
       console.log('[STORE] Tentative d\'ajout dans collection serviceItems...')
       
       const docRef = await addDoc(collection(db, 'serviceItems'), newItem)

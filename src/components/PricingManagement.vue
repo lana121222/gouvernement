@@ -378,12 +378,16 @@ Contenu: { "role": "admin", "permissions": ["accounting"], "email": "${auth.curr
 
     console.log('[PRICING] Validation OK, préparation des données...')
 
-    // Préparer les données
-    const serviceData = {
+    // Préparer les données - CORRECTION: ne jamais envoyer undefined à Firebase
+    const serviceData: any = {
       name: formData.value.name.trim(),
       category: formData.value.category as 'vente' | 'prestation',
-      price: Number(formData.value.price),
-      description: formData.value.description.trim() || undefined
+      price: Number(formData.value.price)
+    }
+    
+    // Ajouter description seulement si elle n'est pas vide
+    if (formData.value.description && formData.value.description.trim()) {
+      serviceData.description = formData.value.description.trim()
     }
 
     console.log('[PRICING] Données à sauvegarder:', serviceData)
