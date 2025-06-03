@@ -171,6 +171,17 @@
           >
             Anciens employés ({{ accountingStore.formerEmployees.length }})
           </button>
+          <button
+            @click="activeTab = 'backups'"
+            :class="[
+              'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
+              activeTab === 'backups'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            💾 Sauvegardes ({{ accountingStore.backups.length }})
+          </button>
         </nav>
       </div>
 
@@ -201,6 +212,10 @@
 
       <div v-if="activeTab === 'former'">
         <FormerEmployeesList />
+      </div>
+      
+      <div v-if="activeTab === 'backups'">
+        <BackupManagement />
       </div>
     </div>
 
@@ -252,6 +267,7 @@ import ServicesManagement from '@/components/ServicesManagement.vue'
 import SalesManagement from '@/components/SalesManagement.vue'
 import PricingManagement from '@/components/PricingManagement.vue'
 import BonusManagement from '@/components/BonusManagement.vue'
+import BackupManagement from '@/components/BackupManagement.vue'
 
 const accountingStore = useAccountingStore()
 const activeTab = ref('employees')
@@ -274,6 +290,7 @@ onMounted(async () => {
   await Promise.all([
     accountingStore.fetchEmployees(),
     accountingStore.fetchTransactions(),
+    accountingStore.fetchBackups(),
     accountingStore.initializeBonusSystem(),
     accountingStore.initializeServiceStore()
   ])

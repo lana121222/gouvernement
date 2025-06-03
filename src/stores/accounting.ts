@@ -11,7 +11,8 @@ import {
   deleteField,
   query, 
   orderBy, 
-  where 
+  where,
+  getDoc
 } from 'firebase/firestore'
 
 export const useAccountingStore = defineStore('accounting', () => {
@@ -365,14 +366,24 @@ export const useAccountingStore = defineStore('accounting', () => {
       const backupData = {
         employees: employees.value,
         transactions: transactions.value,
-        date: new Date().toISOString()
+        serviceTransactions: serviceTransactions.value,
+        totalIncome: totalIncome.value,
+        totalExpenses: totalExpenses.value,
+        balance: balance.value,
+        date: new Date().toISOString(),
+        type: 'auto',
+        description: 'Sauvegarde automatique avant réinitialisation'
       }
 
       // Sauvegarder dans une collection d'historique
       await addDoc(collection(db, 'accounting_backups'), {
         backup_data: backupData,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        type: 'auto',
+        description: 'Sauvegarde automatique avant réinitialisation'
       })
+
+      console.log('[STORE] ✅ Sauvegarde automatique créée avant réinitialisation')
 
       // Supprimer toutes les transactions
       const transactionsQuery = query(collection(db, 'transactions'))
@@ -391,6 +402,12 @@ export const useAccountingStore = defineStore('accounting', () => {
       }
 
       transactions.value = []
+      
+      // Rafraîchir la liste des sauvegardes si elle est déjà chargée
+      if (backups.value.length > 0) {
+        await fetchBackups()
+      }
+      
     } catch (err: any) {
       error.value = err.message
     } finally {
@@ -1283,12 +1300,186 @@ export const useAccountingStore = defineStore('accounting', () => {
     }
   }
 
+  // === 💾 GESTION DES SAUVEGARDES ===
+  
+  // État pour les sauvegardes
+  const backups = ref<any[]>([])
+
+  // Récupérer la liste des sauvegardes
+  async function fetchBackups() {
+    loading.value = true
+    try {
+      const q = query(collection(db, 'accounting_backups'), orderBy('created_at', 'desc'))
+      const querySnapshot = await getDocs(q)
+      
+      backups.value = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Créer une sauvegarde manuelle
+  async function createManualBackup(description?: string) {
+    loading.value = true
+    try {
+      const backupData = {
+        employees: employees.value,
+        transactions: transactions.value,
+        serviceTransactions: serviceTransactions.value,
+        totalIncome: totalIncome.value,
+        totalExpenses: totalExpenses.value,
+        balance: balance.value,
+        date: new Date().toISOString(),
+        type: 'manual',
+        description: description || 'Sauvegarde manuelle'
+      }
+
+      const docRef = await addDoc(collection(db, 'accounting_backups'), {
+        backup_data: backupData,
+        created_at: new Date().toISOString(),
+        type: 'manual',
+        description: description || 'Sauvegarde manuelle'
+      })
+
+      console.log('[STORE] ✅ Sauvegarde manuelle créée:', docRef.id)
+      
+      // Rafraîchir la liste des sauvegardes
+      await fetchBackups()
+      
+      return docRef.id
+    } catch (err: any) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Restaurer une sauvegarde
+  async function restoreBackup(backupId: string) {
+    loading.value = true
+    try {
+      // Récupérer la sauvegarde
+      const backupDoc = await getDoc(doc(db, 'accounting_backups', backupId))
+      if (!backupDoc.exists()) {
+        throw new Error('Sauvegarde introuvable')
+      }
+
+      const backupData = backupDoc.data().backup_data
+
+      console.log('[STORE] 🔄 Restauration de la sauvegarde:', backupId)
+      
+      // 1. Supprimer toutes les transactions actuelles
+      const transactionsQuery = query(collection(db, 'transactions'))
+      const transactionsSnapshot = await getDocs(transactionsQuery)
+      
+      const deleteTransactionPromises = transactionsSnapshot.docs.map(doc => deleteDoc(doc.ref))
+      await Promise.all(deleteTransactionPromises)
+
+      // 2. Supprimer toutes les transactions de service actuelles
+      const serviceTransactionsQuery = query(collection(db, 'serviceTransactions'))
+      const serviceTransactionsSnapshot = await getDocs(serviceTransactionsQuery)
+      
+      const deleteServiceTransactionPromises = serviceTransactionsSnapshot.docs.map(doc => deleteDoc(doc.ref))
+      await Promise.all(deleteServiceTransactionPromises)
+
+      // 3. Restaurer les transactions de la sauvegarde
+      if (backupData.transactions && backupData.transactions.length > 0) {
+        for (const transaction of backupData.transactions) {
+          await addDoc(collection(db, 'transactions'), {
+            ...transaction,
+            id: undefined // Laisser Firebase générer un nouvel ID
+          })
+        }
+      }
+
+      // 4. Restaurer les transactions de service de la sauvegarde
+      if (backupData.serviceTransactions && backupData.serviceTransactions.length > 0) {
+        for (const serviceTransaction of backupData.serviceTransactions) {
+          await addDoc(collection(db, 'serviceTransactions'), {
+            ...serviceTransaction,
+            id: undefined // Laisser Firebase générer un nouvel ID
+          })
+        }
+      }
+
+      // 5. Restaurer les données employés (heures, primes, etc.)
+      if (backupData.employees && backupData.employees.length > 0) {
+        for (const employeeData of backupData.employees) {
+          await updateEmployee(employeeData.id, {
+            hours_worked: employeeData.hours_worked,
+            bonus_amount: employeeData.bonus_amount,
+            total_earnings: employeeData.total_earnings
+          })
+        }
+      }
+
+      // 6. Rafraîchir les données locales
+      await Promise.all([
+        fetchEmployees(),
+        fetchTransactions(),
+        fetchServiceTransactions()
+      ])
+
+      console.log('[STORE] ✅ Sauvegarde restaurée avec succès')
+      
+    } catch (err: any) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Supprimer une sauvegarde
+  async function deleteBackup(backupId: string) {
+    loading.value = true
+    try {
+      await deleteDoc(doc(db, 'accounting_backups', backupId))
+      
+      // Retirer de la liste locale
+      backups.value = backups.value.filter(backup => backup.id !== backupId)
+      
+      console.log('[STORE] ✅ Sauvegarde supprimée:', backupId)
+    } catch (err: any) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Exporter une sauvegarde vers JSON
+  function exportBackupToJSON(backup: any) {
+    const exportData = {
+      ...backup,
+      exported_at: new Date().toISOString(),
+      export_version: '1.0'
+    }
+    
+    const dataStr = JSON.stringify(exportData, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(dataBlob)
+    link.download = `backup_${backup.id}_${new Date().toISOString().split('T')[0]}.json`
+    link.click()
+    
+    URL.revokeObjectURL(link.href)
+  }
+
   return {
     employees,
     transactions,
     serviceItems,
     serviceTransactions,
     bonusConfigs,
+    backups,
     activeShifts,
     loading,
     error,
@@ -1337,6 +1528,11 @@ export const useAccountingStore = defineStore('accounting', () => {
     createDefaultBonusConfigs,
     initializeBonusSystem,
     reactivateEmployee,
-    resetAllHours
+    resetAllHours,
+    fetchBackups,
+    createManualBackup,
+    restoreBackup,
+    deleteBackup,
+    exportBackupToJSON
   }
 }) 
