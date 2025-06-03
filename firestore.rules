@@ -2,37 +2,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 👤 Users peuvent lire/écrire leur propre profil
+    // 👤 USERS COLLECTION
     match /users/{userId} {
+      // Chaque utilisateur peut accéder à son propre document
       allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // 📝 Profils utilisateur - chaque utilisateur peut gérer son propre profil
-    match /profiles/{profileId} {
-      allow read, write: if request.auth != null && request.auth.uid == profileId;
-    }
-    
-    // 👥 Admins peuvent gérer tous les utilisateurs et profils
-    match /users/{userId} {
+      
+      // Admins peuvent accéder à tous les documents users
       allow read, write: if request.auth != null && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
+    // 📝 PROFILES COLLECTION - Règles simplifiées temporairement
     match /profiles/{profileId} {
-      allow read: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // TEMPORAIRE: Tous les utilisateurs authentifiés peuvent accéder aux profils
+      // En attendant que les règles soient mises à jour dans la console Firebase
+      allow read, write: if request.auth != null;
     }
     
-    // 💼 Employés - Admins et Managers peuvent tout faire
+    // 💼 EMPLOYEES COLLECTION
     match /employees/{employeeId} {
       allow read, write: if request.auth != null && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'];
     }
     
-    // 💰 Transactions - Admins, Managers et Comptables
+    // 💰 TRANSACTIONS COLLECTION
     match /transactions/{transactionId} {
       allow read, write: if request.auth != null && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
