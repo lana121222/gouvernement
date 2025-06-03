@@ -117,11 +117,11 @@
                   <div class="text-xs font-medium text-purple-600">
                     🎯 Primes automatiques: ${{ formatCurrency(getCalculatedBonuses(employee).total) }}
                   </div>
-                  <div v-if="getCalculatedBonuses(employee).sales > 0" class="text-xs text-gray-500">
-                    💰 Ventes: ${{ formatCurrency(getCalculatedBonuses(employee).sales) }}
+                  <div v-if="getCalculatedBonuses(employee).salesBonus > 0" class="text-xs text-gray-500">
+                    💰 Ventes: ${{ formatCurrency(getCalculatedBonuses(employee).salesBonus) }}
                   </div>
-                  <div v-if="getCalculatedBonuses(employee).services > 0" class="text-xs text-gray-500">
-                    🛠️ Prestations: ${{ formatCurrency(getCalculatedBonuses(employee).services) }}
+                  <div v-if="getCalculatedBonuses(employee).serviceBonus > 0" class="text-xs text-gray-500">
+                    🛠️ Prestations: ${{ formatCurrency(getCalculatedBonuses(employee).serviceBonus) }}
                   </div>
                 </div>
                 
