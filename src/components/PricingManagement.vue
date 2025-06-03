@@ -224,6 +224,7 @@
               </button>
               <button
                 type="submit"
+                @click="console.log('[PRICING] Bouton Ajouter cliqué!')"
                 :disabled="accountingStore.loading || !formData.name.trim() || !formData.category || formData.price <= 0"
                 class="btn-primary disabled:opacity-50"
               >
@@ -288,22 +289,32 @@ const deleteService = async (service: ServiceItem) => {
 }
 
 const submitForm = async () => {
+  console.log('[PRICING] ========== DEBUT SUBMIT FORM ==========')
+  console.log('[PRICING] formData.value:', formData.value)
+  console.log('[PRICING] accountingStore:', accountingStore)
+  console.log('[PRICING] accountingStore.addServiceItem:', typeof accountingStore.addServiceItem)
+  
   try {
     // Validation des données
     if (!formData.value.name.trim()) {
+      console.log('[PRICING] Erreur: nom manquant')
       alert('Le nom du service est requis')
       return
     }
     
     if (!formData.value.category) {
+      console.log('[PRICING] Erreur: catégorie manquante')
       alert('La catégorie est requise')
       return
     }
     
     if (formData.value.price <= 0) {
+      console.log('[PRICING] Erreur: prix invalide')
       alert('Le prix doit être supérieur à 0')
       return
     }
+
+    console.log('[PRICING] Validation OK, préparation des données...')
 
     // Préparer les données
     const serviceData = {
@@ -318,23 +329,32 @@ const submitForm = async () => {
 
     if (editingService.value) {
       // Modification
+      console.log('[PRICING] Mode modification...')
       await accountingStore.updateServiceItem(editingService.value.id, serviceData)
       console.log('[PRICING] Service modifié')
     } else {
       // Ajout
+      console.log('[PRICING] Mode ajout...')
+      console.log('[PRICING] Appel addServiceItem...')
       await accountingStore.addServiceItem(serviceData)
-      console.log('[PRICING] Service ajouté')
+      console.log('[PRICING] Service ajouté avec succès')
     }
     
     // Forcer un rechargement des services pour s'assurer qu'ils sont à jour
+    console.log('[PRICING] Rechargement des services...')
     await accountingStore.fetchServiceItems()
     console.log('[PRICING] Services après rechargement:', accountingStore.serviceItems.length)
     console.log('[PRICING] Services par catégorie:', accountingStore.servicesByCategory)
     
     closeModal()
+    console.log('[PRICING] ========== FIN SUBMIT FORM (SUCCES) ==========')
     
   } catch (error) {
-    console.error('Erreur lors de l\'enregistrement:', error)
+    console.error('[PRICING] ========== ERREUR SUBMIT FORM ==========')
+    console.error('[PRICING] Erreur lors de l\'enregistrement:', error)
+    console.error('[PRICING] Type d\'erreur:', error.constructor.name)
+    console.error('[PRICING] Message:', error.message)
+    console.error('[PRICING] Stack:', error.stack)
     alert('Erreur lors de l\'enregistrement: ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
   }
 }

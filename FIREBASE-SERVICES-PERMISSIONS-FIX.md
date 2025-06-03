@@ -32,6 +32,7 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+
     
     // 📝 PROFILES COLLECTION - Règles simplifiées temporairement
     match /profiles/{profileId} {

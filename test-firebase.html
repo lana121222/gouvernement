@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Firebase</title>
+</head>
+<body>
+    <h1>Test Firebase</h1>
+    <button onclick="testAddService()">Test Ajouter Service</button>
+    <button onclick="testListServices()">Test Lister Services</button>
+    <div id="results"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'
+        import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js'
+
+        // Configuration Firebase (remplacez par votre config)
+        const firebaseConfig = {
+            // Vous devez mettre votre config ici
+        }
+
+        const app = initializeApp(firebaseConfig)
+        const db = getFirestore(app)
+
+        window.testAddService = async function() {
+            try {
+                console.log('[TEST] Ajout service...')
+                const docRef = await addDoc(collection(db, 'serviceItems'), {
+                    name: 'Test Service',
+                    category: 'vente',
+                    price: 10.50,
+                    description: 'Service de test',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                console.log('[TEST] Service ajouté avec ID:', docRef.id)
+                document.getElementById('results').innerHTML += `<p>✅ Service ajouté: ${docRef.id}</p>`
+            } catch (error) {
+                console.error('[TEST] Erreur:', error)
+                document.getElementById('results').innerHTML += `<p>❌ Erreur: ${error.message}</p>`
+            }
+        }
+
+        window.testListServices = async function() {
+            try {
+                console.log('[TEST] Récupération services...')
+                const querySnapshot = await getDocs(collection(db, 'serviceItems'))
+                console.log('[TEST] Nombre de services:', querySnapshot.size)
+                
+                let html = `<p>📋 Services trouvés (${querySnapshot.size}):</p><ul>`
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data()
+                    html += `<li>${data.name} - ${data.category} - $${data.price}</li>`
+                })
+                html += '</ul>'
+                
+                document.getElementById('results').innerHTML += html
+            } catch (error) {
+                console.error('[TEST] Erreur:', error)
+                document.getElementById('results').innerHTML += `<p>❌ Erreur: ${error.message}</p>`
+            }
+        }
+    </script>
+</body>
+</html> 
