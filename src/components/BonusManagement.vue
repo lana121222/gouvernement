@@ -444,6 +444,8 @@ const sortedBonusConfigs = computed(() => {
   })
 })
 
+const bonusConfigs = computed(() => accountingStore.bonusConfigs || [])
+
 const totalSalesBonuses = computed(() => {
   // Calculer les primes sur les ventes
   return accountingStore.serviceTransactions
