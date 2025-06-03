@@ -27,13 +27,27 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employé</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Poste</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taux horaire</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Heures</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prime</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total à payer</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Employé
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Poste & Grade
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Taux horaire
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Heures de service
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Primes
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Total à payer
+            </th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
@@ -55,8 +69,20 @@
                 </div>
               </div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              {{ employee.position }}
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="space-y-1">
+                <!-- Poste -->
+                <div class="text-sm font-medium text-gray-900">
+                  {{ employee.position }}
+                </div>
+                <!-- Grade avec emoji -->
+                <div class="flex items-center space-x-2">
+                  <span class="text-lg">{{ getGradeIcon(employee.grade || 'debutant') }}</span>
+                  <span class="text-sm text-gray-600 font-medium">
+                    {{ formatGradeName(employee.grade || 'debutant') }}
+                  </span>
+                </div>
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               ${{ formatCurrency(employee.hourly_rate) }}
@@ -85,17 +111,68 @@
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <input
-                v-model.number="employee.bonus_amount"
-                @change="updateEmployeeBonus(employee.id, employee.bonus_amount)"
-                type="number"
-                min="0"
-                step="0.01"
-                class="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
-              />
+              <div class="space-y-2">
+                <!-- Primes automatiques calculées -->
+                <div class="space-y-1">
+                  <div class="text-xs font-medium text-purple-600">
+                    🎯 Primes automatiques: ${{ formatCurrency(getCalculatedBonuses(employee).total) }}
+                  </div>
+                  <div v-if="getCalculatedBonuses(employee).sales > 0" class="text-xs text-gray-500">
+                    💰 Ventes: ${{ formatCurrency(getCalculatedBonuses(employee).sales) }}
+                  </div>
+                  <div v-if="getCalculatedBonuses(employee).services > 0" class="text-xs text-gray-500">
+                    🛠️ Prestations: ${{ formatCurrency(getCalculatedBonuses(employee).services) }}
+                  </div>
+                </div>
+                
+                <!-- Prime manuelle modifiable -->
+                <div class="space-y-1">
+                  <label class="text-xs font-medium text-blue-600">➕ Prime manuelle:</label>
+                  <input
+                    v-model.number="employee.bonus_amount"
+                    @change="updateEmployeeBonus(employee.id, employee.bonus_amount)"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    class="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+                
+                <!-- Total des primes -->
+                <div class="text-xs font-medium text-gray-700 border-t pt-1">
+                  Total primes: ${{ formatCurrency(getTotalBonuses(employee)) }}
+                </div>
+              </div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              ${{ formatCurrency(getTotalEarningsWithService(employee)) }}
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <div class="space-y-1">
+                <!-- Total complet (service + manuel + primes) -->
+                <div :class="[
+                  'text-lg font-medium',
+                  accountingStore.isEmployeeOnDuty(employee.id) ? 'text-green-600' : 
+                  getTotalEarningsWithBonuses(employee) > 0 ? 'text-gray-900' : 'text-gray-500'
+                ]">
+                  ${{ formatCurrency(getTotalEarningsWithBonuses(employee)) }}
+                </div>
+                
+                <!-- Détail du calcul -->
+                <div class="text-xs text-gray-500">
+                  <span v-if="accountingStore.isEmployeeOnDuty(employee.id)">
+                    Service: ${{ formatCurrency(getServiceEarnings(employee.id, employee.hourly_rate)) }}
+                    <span v-if="employee.hours_worked > 0"> + Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}</span>
+                    <span v-if="getTotalBonuses(employee) > 0"> + Primes: ${{ formatCurrency(getTotalBonuses(employee)) }}</span>
+                  </span>
+                  <span v-else-if="getTotalEarningsWithBonuses(employee) > 0">
+                    <span v-if="employee.hours_worked > 0">Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}</span>
+                    <span v-if="getTotalBonuses(employee) > 0">
+                      <span v-if="employee.hours_worked > 0"> + </span>Primes: ${{ formatCurrency(getTotalBonuses(employee)) }}
+                    </span>
+                  </span>
+                  <span v-else>
+                    Aucun gain enregistré
+                  </span>
+                </div>
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div class="flex justify-end space-x-2">
@@ -143,6 +220,26 @@
       </table>
     </div>
 
+    <!-- Résumé en bas de table -->
+    <div v-if="accountingStore.activeEmployees.length > 0" class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+      <div class="flex justify-between items-center text-sm">
+        <div class="text-gray-600">
+          {{ accountingStore.activeEmployees.length }} employé{{ accountingStore.activeEmployees.length > 1 ? 's' : '' }} actif{{ accountingStore.activeEmployees.length > 1 ? 's' : '' }}
+        </div>
+        <div class="flex space-x-6">
+          <div class="text-gray-600">
+            Primes automatiques: <span class="font-medium text-purple-600">${{ formatCurrency(totalAutomaticBonuses) }}</span>
+          </div>
+          <div class="text-gray-600">
+            Primes manuelles: <span class="font-medium text-blue-600">${{ formatCurrency(totalManualBonuses) }}</span>
+          </div>
+          <div class="font-medium text-gray-900">
+            Total masse salariale: <span class="text-green-600">${{ formatCurrency(totalPayroll) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal d'ajout d'employé -->
     <EmployeeModal
       v-if="showAddModal"
@@ -185,7 +282,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
 import type { Employee } from '@/lib/firebase'
 import EmployeeModal from './EmployeeModal.vue'
@@ -202,12 +299,46 @@ const showTerminationModal = ref(false)
 const showDeleteModal = ref(false)
 const selectedEmployee = ref<Employee | null>(null)
 
+// Timer pour mise à jour temps réel
+const currentTime = ref(new Date())
+let timeInterval: number | null = null
+
+// === FONCTIONS UTILITAIRES ===
+
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount)
 }
+
+// === FONCTIONS DE GRADE ===
+
+const getGradeIcon = (grade: string) => {
+  const icons = {
+    'debutant': '🌱',
+    'junior': '📈',
+    'senior': '⭐',
+    'expert': '🎓',
+    'manager': '👔',
+    'directeur': '👑'
+  }
+  return icons[grade as keyof typeof icons] || '🌱'
+}
+
+const formatGradeName = (grade: string) => {
+  const names = {
+    'debutant': 'Débutant',
+    'junior': 'Junior',
+    'senior': 'Senior',
+    'expert': 'Expert',
+    'manager': 'Manager',
+    'directeur': 'Directeur'
+  }
+  return names[grade as keyof typeof names] || 'Débutant'
+}
+
+// === FONCTIONS DE SERVICE ===
 
 // Obtenir l'heure de début du service
 const getServiceStartTime = (employeeId: string) => {
@@ -238,10 +369,6 @@ const formatServiceHours = (employeeId: string) => {
   }
 }
 
-// Timer pour mise à jour temps réel
-const currentTime = ref(new Date())
-let timeInterval: number | null = null
-
 // Calculer les gains basés sur les heures de service
 const getServiceEarnings = (employeeId: string, hourlyRate: number) => {
   if (!accountingStore.isEmployeeOnDuty(employeeId)) {
@@ -254,19 +381,60 @@ const getServiceEarnings = (employeeId: string, hourlyRate: number) => {
   return hours * hourlyRate
 }
 
-// Calculer le total des gains (service + manuel + prime)
-const getTotalEarningsWithService = (employee: Employee) => {
+// === FONCTIONS DE PRIMES ===
+
+// Calculer les primes automatiques basées sur les ventes et prestations
+const getCalculatedBonuses = (employee: Employee) => {
+  return accountingStore.calculateEmployeeBonuses(employee.id)
+}
+
+// Calculer le total des primes (automatiques + manuelles)
+const getTotalBonuses = (employee: Employee) => {
+  const calculatedBonuses = getCalculatedBonuses(employee)
+  return calculatedBonuses.total + employee.bonus_amount
+}
+
+// Calculer le total des gains (service + manuel + toutes les primes)
+const getTotalEarningsWithBonuses = (employee: Employee) => {
   const serviceEarnings = getServiceEarnings(employee.id, employee.hourly_rate)
   const manualEarnings = employee.hours_worked * employee.hourly_rate
-  const bonus = employee.bonus_amount
+  const totalBonuses = getTotalBonuses(employee)
   
-  return serviceEarnings + manualEarnings + bonus
+  return serviceEarnings + manualEarnings + totalBonuses
 }
 
 // Vérifier si l'employé a des gains à payer
 const hasEarningsToPay = (employee: Employee) => {
-  return getTotalEarningsWithService(employee) > 0
+  return getTotalEarningsWithBonuses(employee) > 0
 }
+
+// === COMPUTED PROPERTIES ===
+
+// Total des primes automatiques pour tous les employés
+const totalAutomaticBonuses = computed(() => 
+  accountingStore.activeEmployees.reduce((sum, emp) => {
+    const bonuses = getCalculatedBonuses(emp)
+    return sum + bonuses.total
+  }, 0)
+)
+
+// Total des primes manuelles pour tous les employés
+const totalManualBonuses = computed(() => 
+  accountingStore.activeEmployees.reduce((sum, emp) => sum + emp.bonus_amount, 0)
+)
+
+// Total de la masse salariale incluant toutes les primes
+const totalPayroll = computed(() => 
+  accountingStore.activeEmployees.reduce((sum, emp) => {
+    if (accountingStore.isEmployeeOnDuty(emp.id)) {
+      return sum + getServiceEarnings(emp.id, emp.hourly_rate) + getTotalBonuses(emp)
+    } else {
+      return sum + (emp.hours_worked * emp.hourly_rate) + getTotalBonuses(emp)
+    }
+  }, 0)
+)
+
+// === GESTIONNAIRES D'ÉVÉNEMENTS ===
 
 const updateEmployeeBonus = async (id: string, bonus: number) => {
   await accountingStore.updateEmployee(id, { bonus_amount: bonus })
@@ -328,6 +496,8 @@ const handleDelete = async () => {
     selectedEmployee.value = null
   }
 }
+
+// === LIFECYCLE ===
 
 // Démarrer le timer temps réel
 onMounted(async () => {
