@@ -95,12 +95,12 @@
               />
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              ${{ formatCurrency(employee.total_earnings) }}
+              ${{ formatCurrency(getTotalEarningsWithService(employee)) }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div class="flex justify-end space-x-2">
                 <button
-                  v-if="employee.total_earnings > 0"
+                  v-if="hasEarningsToPay(employee)"
                   @click="showPayModal(employee)"
                   class="text-green-600 hover:text-green-900"
                   title="Payer"
@@ -241,6 +241,32 @@ const formatServiceHours = (employeeId: string) => {
 // Timer pour mise à jour temps réel
 const currentTime = ref(new Date())
 let timeInterval: number | null = null
+
+// Calculer les gains basés sur les heures de service
+const getServiceEarnings = (employeeId: string, hourlyRate: number) => {
+  if (!accountingStore.isEmployeeOnDuty(employeeId)) {
+    return 0
+  }
+  
+  const totalSeconds = accountingStore.getCurrentShiftDurationInSeconds(employeeId)
+  const hours = totalSeconds / 3600 // Conversion précise en heures décimales
+  
+  return hours * hourlyRate
+}
+
+// Calculer le total des gains (service + manuel + prime)
+const getTotalEarningsWithService = (employee: Employee) => {
+  const serviceEarnings = getServiceEarnings(employee.id, employee.hourly_rate)
+  const manualEarnings = employee.hours_worked * employee.hourly_rate
+  const bonus = employee.bonus_amount
+  
+  return serviceEarnings + manualEarnings + bonus
+}
+
+// Vérifier si l'employé a des gains à payer
+const hasEarningsToPay = (employee: Employee) => {
+  return getTotalEarningsWithService(employee) > 0
+}
 
 const updateEmployeeBonus = async (id: string, bonus: number) => {
   await accountingStore.updateEmployee(id, { bonus_amount: bonus })
