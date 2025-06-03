@@ -435,11 +435,14 @@ const generatePdfContent = (backup: any) => {
 
   const masseSalariale = backup.backup_data?.totalPayroll || 0
   const employesActifs = backup.backup_data?.statistics?.activeEmployees || 0
+  const revenus = backup.backup_data?.totalIncome || 0
+  const depenses = backup.backup_data?.totalExpenses || 0
+  const soldeNet = backup.backup_data?.balance || 0
+  const salaireMoyen = backup.backup_data?.statistics?.averageEmployeeEarnings || 0
 
-  // TOUS les employés avec gains (pas seulement le top 5)
+  // TOUS les employés (pas seulement ceux avec gains)
   const allEmployees = backup.backup_data?.employees ? 
     backup.backup_data.employees
-      .filter((emp: any) => emp.is_active && !emp.is_former && emp.total_earnings > 0)
       .sort((a: any, b: any) => (b.total_earnings || 0) - (a.total_earnings || 0)) : []
 
   // TOUTES les transactions (pas seulement les 5 dernières)
@@ -473,34 +476,42 @@ const generatePdfContent = (backup: any) => {
       </div>
 
       ${backup.backup_data ? `
-      <!-- Statistiques financières COMPLÈTES -->
+      <!-- RÉSUMÉ STATISTIQUE COMPLET -->
       <div style="margin-bottom: 35px;">
-        <h3 style="color: #1f2937; font-size: 20px; margin-bottom: 16px; border-left: 6px solid #10b981; padding-left: 15px; font-weight: bold;">💰 Résumé Financier Complet</h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-          <div style="background: #ecfdf5; padding: 25px; border-radius: 10px; border: 2px solid #10b981; flex: 1; min-width: 200px;">
-            <p style="margin: 0; color: #065f46; font-weight: bold; font-size: 14px;">Revenus Totaux</p>
-            <p style="margin: 8px 0 0 0; font-size: 24px; color: #059669; font-weight: bold;">$${formatCurrency(backup.backup_data.totalIncome || 0)}</p>
-            <p style="margin: 4px 0 0 0; font-size: 12px; color: #047857;">${incomeTransactions.length} transactions de revenus</p>
+        <h3 style="color: #1f2937; font-size: 20px; margin-bottom: 16px; border-left: 6px solid #10b981; padding-left: 15px; font-weight: bold;">📈 Résumé Statistique Complet</h3>
+        <div style="background: #f0fdf4; padding: 25px; border-radius: 10px; border: 2px solid #10b981; margin-bottom: 20px;">
+          <div style="display: flex; flex-wrap: wrap; gap: 30px; justify-content: space-between;">
+            <div style="text-align: center; flex: 1; min-width: 150px;">
+              <p style="margin: 0; color: #065f46; font-weight: bold; font-size: 14px;">REVENUS TOTAUX</p>
+              <p style="margin: 8px 0 0 0; font-size: 32px; color: #059669; font-weight: bold;">$${formatCurrency(revenus)}</p>
+            </div>
+            <div style="text-align: center; flex: 1; min-width: 150px;">
+              <p style="margin: 0; color: #7f1d1d; font-weight: bold; font-size: 14px;">DÉPENSES TOTALES</p>
+              <p style="margin: 8px 0 0 0; font-size: 32px; color: #dc2626; font-weight: bold;">$${formatCurrency(depenses)}</p>
+            </div>
+            <div style="text-align: center; flex: 1; min-width: 150px;">
+              <p style="margin: 0; color: #1e3a8a; font-weight: bold; font-size: 14px;">SOLDE NET</p>
+              <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; color: ${soldeNet >= 0 ? '#059669' : '#dc2626'};">$${formatCurrency(soldeNet)}</p>
+            </div>
           </div>
-          <div style="background: #fef2f2; padding: 25px; border-radius: 10px; border: 2px solid #ef4444; flex: 1; min-width: 200px;">
-            <p style="margin: 0; color: #7f1d1d; font-weight: bold; font-size: 14px;">Dépenses Totales</p>
-            <p style="margin: 8px 0 0 0; font-size: 24px; color: #dc2626; font-weight: bold;">$${formatCurrency(backup.backup_data.totalExpenses || 0)}</p>
-            <p style="margin: 4px 0 0 0; font-size: 12px; color: #b91c1c;">${expenseTransactions.length} transactions de dépenses</p>
-          </div>
-          <div style="background: #eff6ff; padding: 25px; border-radius: 10px; border: 2px solid #3b82f6; flex: 1; min-width: 200px;">
-            <p style="margin: 0; color: #1e3a8a; font-weight: bold; font-size: 14px;">Solde Net</p>
-            <p style="margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: ${(backup.backup_data.balance || 0) >= 0 ? '#059669' : '#dc2626'};">$${formatCurrency(backup.backup_data.balance || 0)}</p>
-            <p style="margin: 4px 0 0 0; font-size: 12px; color: #1e40af;">Bénéfice ${(backup.backup_data.balance || 0) >= 0 ? 'positif' : 'négatif'}</p>
-          </div>
-          <div style="background: #f5f3ff; padding: 25px; border-radius: 10px; border: 2px solid #8b5cf6; flex: 1; min-width: 200px;">
-            <p style="margin: 0; color: #581c87; font-weight: bold; font-size: 14px;">Masse Salariale</p>
-            <p style="margin: 8px 0 0 0; font-size: 24px; color: #7c3aed; font-weight: bold;">$${formatCurrency(masseSalariale)}</p>
-            <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b21a8;">${employesActifs} employés actifs</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 30px; justify-content: space-between; margin-top: 20px; padding-top: 20px; border-top: 1px solid #a7f3d0;">
+            <div style="text-align: center; flex: 1; min-width: 150px;">
+              <p style="margin: 0; color: #581c87; font-weight: bold; font-size: 14px;">EMPLOYÉS ACTIFS</p>
+              <p style="margin: 8px 0 0 0; font-size: 32px; color: #7c3aed; font-weight: bold;">${employesActifs}</p>
+            </div>
+            <div style="text-align: center; flex: 1; min-width: 150px;">
+              <p style="margin: 0; color: #0284c7; font-weight: bold; font-size: 14px;">SALAIRE MOYEN</p>
+              <p style="margin: 8px 0 0 0; font-size: 32px; color: #0284c7; font-weight: bold;">$${formatCurrency(salaireMoyen)}</p>
+            </div>
+            <div style="text-align: center; flex: 1; min-width: 150px;">
+              <p style="margin: 0; color: #be185d; font-weight: bold; font-size: 14px;">MASSE SALARIALE</p>
+              <p style="margin: 8px 0 0 0; font-size: 32px; color: #be185d; font-weight: bold;">$${formatCurrency(masseSalariale)}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Statistiques des données -->
+      <!-- Statistiques détaillées des données -->
       <div style="margin-bottom: 35px;">
         <h3 style="color: #1f2937; font-size: 20px; margin-bottom: 16px; border-left: 6px solid #f59e0b; padding-left: 15px; font-weight: bold;">📊 Contenu Détaillé de la Sauvegarde</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 15px;">
@@ -509,35 +520,33 @@ const generatePdfContent = (backup: any) => {
             <p style="margin: 8px 0 0 0; color: #78350f; font-size: 14px; font-weight: 600;">Total Employés</p>
           </div>
           <div style="text-align: center; background: #d1fae5; padding: 20px; border-radius: 10px; border: 2px solid #10b981; flex: 1; min-width: 150px;">
-            <p style="margin: 0; font-size: 28px; font-weight: bold; color: #065f46;">${backup.backup_data?.statistics?.totalTransactions || backup.backup_data?.transactions?.length || 0}</p>
-            <p style="margin: 8px 0 0 0; color: #047857; font-size: 14px; font-weight: 600;">Total Transactions</p>
+            <p style="margin: 0; font-size: 28px; font-weight: bold; color: #065f46;">${incomeTransactions.length}</p>
+            <p style="margin: 8px 0 0 0; color: #047857; font-size: 14px; font-weight: 600;">Revenus</p>
+          </div>
+          <div style="text-align: center; background: #fee2e2; padding: 20px; border-radius: 10px; border: 2px solid #ef4444; flex: 1; min-width: 150px;">
+            <p style="margin: 0; font-size: 28px; font-weight: bold; color: #7f1d1d;">${expenseTransactions.length}</p>
+            <p style="margin: 8px 0 0 0; color: #b91c1c; font-size: 14px; font-weight: 600;">Dépenses</p>
           </div>
           <div style="text-align: center; background: #e0e7ff; padding: 20px; border-radius: 10px; border: 2px solid #6366f1; flex: 1; min-width: 150px;">
             <p style="margin: 0; font-size: 28px; font-weight: bold; color: #3730a3;">${backup.backup_data?.statistics?.totalServiceTransactions || backup.backup_data?.serviceTransactions?.length || 0}</p>
             <p style="margin: 8px 0 0 0; color: #4338ca; font-size: 14px; font-weight: 600;">Services</p>
-          </div>
-          <div style="text-align: center; background: #fce7f3; padding: 20px; border-radius: 10px; border: 2px solid #ec4899; flex: 1; min-width: 150px;">
-            <p style="margin: 0; font-size: 28px; font-weight: bold; color: #be185d;">${employesActifs}</p>
-            <p style="margin: 8px 0 0 0; color: #be185d; font-size: 14px; font-weight: 600;">Employés Actifs</p>
-          </div>
-          <div style="text-align: center; background: #f0f9ff; padding: 20px; border-radius: 10px; border: 2px solid #0ea5e9; flex: 1; min-width: 150px;">
-            <p style="margin: 0; font-size: 28px; font-weight: bold; color: #0284c7;">$${formatCurrency(backup.backup_data?.statistics?.averageEmployeeEarnings || 0)}</p>
-            <p style="margin: 8px 0 0 0; color: #0369a1; font-size: 14px; font-weight: 600;">Salaire Moyen</p>
           </div>
         </div>
       </div>
       ` : ''}
 
       ${allEmployees.length > 0 ? `
-      <!-- TOUS les employés avec gains -->
+      <!-- TOUS les employés -->
       <div style="margin-bottom: 35px;">
-        <h3 style="color: #1f2937; font-size: 20px; margin-bottom: 16px; border-left: 6px solid #8b5cf6; padding-left: 15px; font-weight: bold;">👥 Tous les Employés avec Gains (${allEmployees.length})</h3>
+        <h3 style="color: #1f2937; font-size: 20px; margin-bottom: 16px; border-left: 6px solid #8b5cf6; padding-left: 15px; font-weight: bold;">👥 Tous les Employés (${allEmployees.length})</h3>
         <table style="width: 100%; border-collapse: collapse; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 10px; overflow: hidden;">
           <thead>
             <tr style="background: #374151; color: white;">
               <th style="padding: 15px; text-align: left; font-weight: bold; font-size: 16px;">Nom</th>
+              <th style="padding: 15px; text-align: center; font-weight: bold; font-size: 16px;">Statut</th>
               <th style="padding: 15px; text-align: center; font-weight: bold; font-size: 16px;">Heures</th>
               <th style="padding: 15px; text-align: center; font-weight: bold; font-size: 16px;">Grade</th>
+              <th style="padding: 15px; text-align: right; font-weight: bold; font-size: 16px;">Taux/h</th>
               <th style="padding: 15px; text-align: right; font-weight: bold; font-size: 16px;">Primes</th>
               <th style="padding: 15px; text-align: right; font-weight: bold; font-size: 16px;">Gains Totaux</th>
             </tr>
@@ -546,10 +555,16 @@ const generatePdfContent = (backup: any) => {
             ${allEmployees.map((employee: any, index: number) => `
               <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'};">
                 <td style="padding: 12px 15px; font-weight: 500; font-size: 14px;">${employee.first_name} ${employee.last_name}</td>
+                <td style="padding: 12px 15px; text-align: center; font-size: 12px;">
+                  <span style="padding: 4px 8px; border-radius: 12px; font-size: 11px; background-color: ${employee.is_active && !employee.is_former ? '#dcfce7' : '#fee2e2'}; color: ${employee.is_active && !employee.is_former ? '#166534' : '#991b1b'}; font-weight: 600;">
+                    ${employee.is_active && !employee.is_former ? 'Actif' : 'Inactif'}
+                  </span>
+                </td>
                 <td style="padding: 12px 15px; text-align: center; font-size: 14px;">${employee.hours_worked || 0}h</td>
                 <td style="padding: 12px 15px; text-align: center; text-transform: capitalize; font-size: 14px;">${employee.grade || 'débutant'}</td>
+                <td style="padding: 12px 15px; text-align: right; font-size: 14px; color: #6b7280;">$${formatCurrency(employee.hourly_rate || 0)}</td>
                 <td style="padding: 12px 15px; text-align: right; font-size: 14px; color: #7c3aed;">$${formatCurrency(employee.bonus_amount || 0)}</td>
-                <td style="padding: 12px 15px; text-align: right; font-weight: bold; color: #059669; font-size: 14px;">$${formatCurrency(employee.total_earnings || 0)}</td>
+                <td style="padding: 12px 15px; text-align: right; font-weight: bold; color: ${(employee.total_earnings || 0) > 0 ? '#059669' : '#6b7280'}; font-size: 14px;">$${formatCurrency(employee.total_earnings || 0)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -596,7 +611,7 @@ const generatePdfContent = (backup: any) => {
       <div style="margin-top: 40px; padding-top: 30px; border-top: 3px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 16px;">
         <p style="margin: 0; font-weight: bold;">🎮 Gouvernement RP - Système de Gestion Comptable</p>
         <p style="margin: 8px 0 0 0;">Rapport complet généré automatiquement • Confidentiel</p>
-        <p style="margin: 4px 0 0 0; font-size: 12px;">Contient ${allTransactions.length} transactions et ${allEmployees.length} employés avec gains</p>
+        <p style="margin: 4px 0 0 0; font-size: 12px;">Contient ${allTransactions.length} transactions et ${allEmployees.length} employés</p>
       </div>
     </div>
   `
