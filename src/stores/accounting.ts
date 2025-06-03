@@ -95,13 +95,27 @@ export const useAccountingStore = defineStore('accounting', () => {
       console.log('Mise à jour employé:', id, updates)
       
       // Recalculer les gains totaux si nécessaire
-      if (updates.hours_worked !== undefined || updates.hourly_rate !== undefined || updates.bonus_amount !== undefined) {
+      if (updates.hours_worked !== undefined || updates.hourly_rate !== undefined || updates.bonus_amount !== undefined || updates.grade !== undefined) {
         const employee = employees.value.find(emp => emp.id === id)
         if (employee) {
           const hours = updates.hours_worked ?? employee.hours_worked
           const rate = updates.hourly_rate ?? employee.hourly_rate
-          const bonus = updates.bonus_amount ?? employee.bonus_amount
-          updates.total_earnings = (hours * rate) + bonus
+          const manualBonus = updates.bonus_amount ?? employee.bonus_amount
+          
+          // Calculer les primes automatiques basées sur le grade (actuel ou nouveau)
+          const grade = updates.grade ?? employee.grade
+          const automaticBonuses = calculateEmployeeBonuses(id)
+          
+          // Total des gains = (heures × taux) + prime manuelle + primes automatiques
+          updates.total_earnings = (hours * rate) + manualBonus + automaticBonuses.total
+          
+          console.log(`[UPDATE] Recalcul gains pour ${employee.first_name} ${employee.last_name}:`, {
+            hours,
+            rate,
+            manualBonus,
+            automaticBonuses: automaticBonuses.total,
+            totalEarnings: updates.total_earnings
+          })
         }
       }
 
@@ -165,21 +179,103 @@ export const useAccountingStore = defineStore('accounting', () => {
     const employee = employees.value.find(emp => emp.id === id)
     if (!employee) return
 
-    // Ajouter une transaction pour le paiement
-    await addTransaction({
-      type: 'expense',
-      amount: employee.total_earnings,
-      description: `Salaire - ${employee.first_name} ${employee.last_name}`,
-      category: 'Salaire',
-      employee_id: id
+    // 1. Calculer les primes automatiques basées sur les ventes/prestations
+    const automaticBonuses = calculateEmployeeBonuses(id)
+    
+    // 2. Calculer les gains de service actuels (si en service)
+    let serviceEarnings = 0
+    if (isEmployeeOnDuty(id)) {
+      const totalSeconds = getCurrentShiftDurationInSeconds(id)
+      const hours = totalSeconds / 3600 // Conversion en heures décimales
+      serviceEarnings = hours * employee.hourly_rate
+    }
+    
+    // 3. Calculer le total à payer
+    const manualEarnings = employee.hours_worked * employee.hourly_rate
+    const manualBonus = employee.bonus_amount
+    const totalAutomaticBonuses = automaticBonuses.total
+    const totalAmount = serviceEarnings + manualEarnings + manualBonus + totalAutomaticBonuses
+
+    console.log(`[PAIEMENT] Détail pour ${employee.first_name} ${employee.last_name}:`, {
+      serviceEarnings,
+      manualEarnings,
+      manualBonus,
+      automaticBonuses: {
+        sales: automaticBonuses.salesBonus,
+        service: automaticBonuses.serviceBonus,
+        total: totalAutomaticBonuses
+      },
+      totalAmount
     })
 
-    // Remettre à zéro les heures et bonus
+    // 4. Créer les transactions de paiement
+    const transactions = []
+
+    // Transaction principale (salaire + primes manuelles)
+    const baseSalary = serviceEarnings + manualEarnings + manualBonus
+    if (baseSalary > 0) {
+      transactions.push({
+        type: 'expense' as const,
+        amount: baseSalary,
+        description: `Salaire ${serviceEarnings > 0 ? '(service + heures)' : '(heures)'} - ${employee.first_name} ${employee.last_name}`,
+        category: 'Salaire',
+        employee_id: id
+      })
+    }
+
+    // Transaction pour primes automatiques sur ventes
+    if (automaticBonuses.salesBonus > 0) {
+      transactions.push({
+        type: 'expense' as const,
+        amount: automaticBonuses.salesBonus,
+        description: `Prime ventes (${formatGradeName(employee.grade || 'debutant')}) - ${employee.first_name} ${employee.last_name}`,
+        category: 'Prime Ventes',
+        employee_id: id
+      })
+    }
+
+    // Transaction pour primes automatiques sur prestations
+    if (automaticBonuses.serviceBonus > 0) {
+      transactions.push({
+        type: 'expense' as const,
+        amount: automaticBonuses.serviceBonus,
+        description: `Prime prestations (${formatGradeName(employee.grade || 'debutant')}) - ${employee.first_name} ${employee.last_name}`,
+        category: 'Prime Prestations',
+        employee_id: id
+      })
+    }
+
+    // 5. Enregistrer toutes les transactions
+    for (const transaction of transactions) {
+      await addTransaction(transaction)
+    }
+
+    // 6. Terminer le service si l'employé est en service
+    if (isEmployeeOnDuty(id)) {
+      await endShift(id, `${employee.first_name} ${employee.last_name}`)
+    }
+
+    // 7. Remettre à zéro les heures et bonus manuels
     await updateEmployee(id, {
       hours_worked: 0,
       bonus_amount: 0,
       total_earnings: 0
     })
+
+    console.log(`[PAIEMENT] ✅ Paiement effectué: ${transactions.length} transaction(s) pour un total de $${totalAmount.toFixed(2)}`)
+  }
+
+  // Fonction helper pour formater le nom du grade
+  function formatGradeName(grade: string) {
+    const names = {
+      'debutant': 'Débutant',
+      'junior': 'Junior', 
+      'senior': 'Senior',
+      'expert': 'Expert',
+      'manager': 'Manager',
+      'directeur': 'Directeur'
+    }
+    return names[grade as keyof typeof names] || 'Débutant'
   }
 
   async function moveToFormer(id: string, reason: string, isBlacklisted: boolean = false) {
@@ -608,6 +704,11 @@ export const useAccountingStore = defineStore('accounting', () => {
       })
       console.log('[STORE] Transaction revenue ajoutée avec succès')
       
+      // 🎯 NOUVEAU: Recalculer automatiquement les primes de l'employé
+      console.log('[STORE] Recalcul des primes pour l\'employé...')
+      await recalculateEmployeeBonuses(employeeId)
+      console.log('[STORE] ✅ Primes recalculées automatiquement')
+      
     } catch (err: any) {
       console.error('[STORE] Erreur dans addServiceSale:', err)
       error.value = err.message
@@ -615,6 +716,42 @@ export const useAccountingStore = defineStore('accounting', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  // 🎯 NOUVELLE FONCTION: Recalculer les primes d'un employé
+  async function recalculateEmployeeBonuses(employeeId: string) {
+    const employee = employees.value.find(emp => emp.id === employeeId)
+    if (!employee) {
+      console.warn(`[STORE] Employé ${employeeId} non trouvé pour recalcul primes`)
+      return
+    }
+
+    // Calculer les nouvelles primes automatiques
+    const newBonuses = calculateEmployeeBonuses(employeeId)
+    
+    console.log(`[STORE] Primes recalculées pour ${employee.first_name} ${employee.last_name}:`, {
+      sales: newBonuses.salesBonus,
+      service: newBonuses.serviceBonus,
+      total: newBonuses.total
+    })
+
+    // Mettre à jour le total_earnings de l'employé (ce qui déclenchera le recalcul dans updateEmployee)
+    const currentHours = employee.hours_worked
+    const currentRate = employee.hourly_rate
+    const currentManualBonus = employee.bonus_amount
+    const newTotalEarnings = (currentHours * currentRate) + currentManualBonus + newBonuses.total
+
+    // Mise à jour silencieuse (juste le total_earnings, sans déclencher de recalcul)
+    const index = employees.value.findIndex(emp => emp.id === employeeId)
+    if (index !== -1) {
+      employees.value[index] = {
+        ...employees.value[index],
+        total_earnings: newTotalEarnings,
+        updated_at: new Date().toISOString()
+      }
+    }
+
+    console.log(`[STORE] ✅ total_earnings mis à jour: $${newTotalEarnings.toFixed(2)} (dont primes auto: $${newBonuses.total.toFixed(2)})`)
   }
 
   // Vérifier si un employé est en service
@@ -1114,6 +1251,7 @@ export const useAccountingStore = defineStore('accounting', () => {
     startShift,
     endShift,
     addServiceSale,
+    recalculateEmployeeBonuses,
     isEmployeeOnDuty,
     getCurrentShiftDuration,
     getCurrentShiftDurationInSeconds,
