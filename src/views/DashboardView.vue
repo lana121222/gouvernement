@@ -131,7 +131,7 @@
                     {{ getEmployeeName(employeeId) }}
                   </div>
                   <div class="text-xs text-green-600 font-medium">
-                    �� {{ formatDuration(employeeId) }}
+                    🟢 {{ formatDuration(employeeId) }}
                   </div>
                   <div class="text-xs text-gray-500">
                     Depuis {{ formatTime(startTime) }}
