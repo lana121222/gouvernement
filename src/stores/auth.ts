@@ -16,6 +16,31 @@ export const useAuthStore = defineStore('auth', () => {
     user.value?.permissions.includes('accounting') || user.value?.role === 'admin'
   )
 
+  // Vérifier si l'utilisateur est désactivé
+  async function checkUserStatus(userId: string): Promise<User | null> {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId))
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as User
+        
+        // Si l'utilisateur est marqué comme supprimé
+        if (userData.is_deleted) {
+          // Déconnecter immédiatement
+          await firebaseSignOut(auth)
+          throw new Error('Ce compte a été désactivé. Contactez un administrateur.')
+        }
+        
+        return { id: userDoc.id, ...userData } as User
+      }
+      
+      return null
+    } catch (error) {
+      console.error('Erreur lors de la vérification du statut utilisateur:', error)
+      throw error
+    }
+  }
+
   // Fonction pour créer automatiquement un profil admin
   async function createAdminProfile(firebaseUser: any) {
     const adminEmails = [
@@ -66,11 +91,11 @@ export const useAuthStore = defineStore('auth', () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       
       if (userCredential.user) {
-        // Récupérer les informations utilisateur depuis Firestore
-        const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
+        // Vérifier le statut de l'utilisateur
+        const userData = await checkUserStatus(userCredential.user.uid)
         
-        if (userDoc.exists()) {
-          user.value = { id: userDoc.id, ...userDoc.data() } as User
+        if (userData) {
+          user.value = userData
         } else {
           // Créer automatiquement le profil si il n'existe pas
           console.log('🔥 Création automatique du profil utilisateur...')
@@ -78,7 +103,13 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
     } catch (err: any) {
-      error.value = err.message
+      // Gérer spécifiquement le cas des comptes désactivés
+      if (err.message.includes('désactivé')) {
+        error.value = 'Votre compte a été désactivé. Contactez un administrateur.'
+      } else {
+        error.value = err.message
+      }
+      user.value = null
     } finally {
       loading.value = false
     }
@@ -103,11 +134,11 @@ export const useAuthStore = defineStore('auth', () => {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         try {
           if (firebaseUser) {
-            // Récupérer les données utilisateur depuis Firestore
-            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
+            // Vérifier le statut de l'utilisateur
+            const userData = await checkUserStatus(firebaseUser.uid)
             
-            if (userDoc.exists()) {
-              user.value = { id: userDoc.id, ...userDoc.data() } as User
+            if (userData) {
+              user.value = userData
             } else {
               // Créer automatiquement le profil si il n'existe pas
               console.log('🔥 Création automatique du profil utilisateur...')
@@ -117,8 +148,13 @@ export const useAuthStore = defineStore('auth', () => {
             user.value = null
           }
         } catch (err: any) {
+          console.error('Erreur d\'authentification:', err)
           error.value = err.message
           user.value = null
+          // Si c'est une erreur de compte désactivé, déconnecter proprement
+          if (err.message.includes('désactivé')) {
+            await firebaseSignOut(auth)
+          }
         } finally {
           loading.value = false
           unsubscribe()

@@ -8,24 +8,30 @@ import {
   deleteDoc,
   query,
   orderBy,
-  where
+  where,
+  getDoc
 } from 'firebase/firestore'
-import { httpsCallable } from 'firebase/functions'
-import { db, functions, type User } from '@/lib/firebase'
+import { db, type User } from '@/lib/firebase'
 
 export const useUserStore = defineStore('users', () => {
   const users = ref<User[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Récupérer tous les utilisateurs
+  // Récupérer tous les utilisateurs actifs (non supprimés)
   const fetchUsers = async (): Promise<User[]> => {
     loading.value = true
     error.value = null
     
     try {
       const usersRef = collection(db, 'users')
-      const q = query(usersRef, orderBy('created_at', 'desc'))
+      // Filtrer pour ne récupérer que les utilisateurs actifs
+      const q = query(
+        usersRef, 
+        where('is_deleted', '!=', true),
+        orderBy('created_at', 'desc')
+      )
+      
       const querySnapshot = await getDocs(q)
       
       const fetchedUsers: User[] = []
@@ -78,37 +84,117 @@ export const useUserStore = defineStore('users', () => {
     }
   }
 
-  // Supprimer un utilisateur complètement (Firebase Auth + Firestore)
+  // Désactiver un utilisateur (nouvelle approche sans Cloud Functions)
   const deleteUser = async (userId: string) => {
     loading.value = true
     error.value = null
     
     try {
-      // Utiliser la Cloud Function pour supprimer complètement l'utilisateur
-      const deleteUserCompletely = httpsCallable(functions, 'deleteUserCompletely')
+      // Marquer l'utilisateur comme supprimé
+      const userRef = doc(db, 'users', userId)
+      await updateDoc(userRef, {
+        is_deleted: true,
+        deleted_at: new Date().toISOString(),
+        deleted_by: 'current-admin-id', // TODO: Récupérer l'ID de l'admin connecté
+        // Révoquer tous les tokens
+        last_token_revocation: Date.now()
+      })
       
-      const result = await deleteUserCompletely({ userId })
-      
-      console.log('✅ Utilisateur supprimé complètement:', result.data)
+      // Marquer le profil comme supprimé aussi
+      try {
+        const profileRef = doc(db, 'profiles', userId)
+        const profileDoc = await getDoc(profileRef)
+        if (profileDoc.exists()) {
+          await updateDoc(profileRef, {
+            is_deleted: true,
+            deleted_at: new Date().toISOString()
+          })
+        }
+      } catch (profileError) {
+        console.log('Aucun profil à désactiver pour cet utilisateur')
+      }
       
       // Supprimer localement de la liste
       users.value = users.value.filter(u => u.id !== userId)
       
+      console.log('✅ Utilisateur désactivé avec succès')
     } catch (err: any) {
-      console.error('Erreur lors de la suppression complète de l\'utilisateur:', err)
-      
-      // Gérer les différents types d'erreurs
-      if (err.code === 'functions/permission-denied') {
-        error.value = 'Permissions insuffisantes pour supprimer cet utilisateur'
-      } else if (err.code === 'functions/unauthenticated') {
-        error.value = 'Vous devez être connecté pour effectuer cette action'
-      } else {
-        error.value = 'Impossible de supprimer l\'utilisateur complètement'
-      }
-      
+      console.error('Erreur lors de la désactivation de l\'utilisateur:', err)
+      error.value = 'Impossible de désactiver l\'utilisateur'
       throw err
     } finally {
       loading.value = false
+    }
+  }
+
+  // Réactiver un utilisateur
+  const reactivateUser = async (userId: string) => {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const userRef = doc(db, 'users', userId)
+      await updateDoc(userRef, {
+        is_deleted: false,
+        deleted_at: null,
+        deleted_by: null,
+        reactivated_at: new Date().toISOString(),
+        reactivated_by: 'current-admin-id', // TODO: Récupérer l'ID de l'admin connecté
+        last_token_revocation: Date.now()
+      })
+      
+      // Réactiver le profil aussi
+      try {
+        const profileRef = doc(db, 'profiles', userId)
+        const profileDoc = await getDoc(profileRef)
+        if (profileDoc.exists()) {
+          await updateDoc(profileRef, {
+            is_deleted: false,
+            deleted_at: null,
+            reactivated_at: new Date().toISOString()
+          })
+        }
+      } catch (profileError) {
+        console.log('Aucun profil à réactiver pour cet utilisateur')
+      }
+      
+      console.log('✅ Utilisateur réactivé avec succès')
+      
+      // Recharger la liste des utilisateurs
+      await fetchUsers()
+    } catch (err: any) {
+      console.error('Erreur lors de la réactivation de l\'utilisateur:', err)
+      error.value = 'Impossible de réactiver l\'utilisateur'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Récupérer les utilisateurs supprimés
+  const fetchDeletedUsers = async (): Promise<User[]> => {
+    try {
+      const usersRef = collection(db, 'users')
+      const q = query(
+        usersRef, 
+        where('is_deleted', '==', true),
+        orderBy('deleted_at', 'desc')
+      )
+      
+      const querySnapshot = await getDocs(q)
+      const deletedUsers: User[] = []
+      
+      querySnapshot.forEach((doc) => {
+        deletedUsers.push({
+          id: doc.id,
+          ...doc.data()
+        } as User)
+      })
+      
+      return deletedUsers
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs supprimés:', error)
+      throw error
     }
   }
 
@@ -180,6 +266,8 @@ export const useUserStore = defineStore('users', () => {
     fetchUsers,
     updateUser,
     deleteUser,
+    reactivateUser,
+    fetchDeletedUsers,
     getUsersByRole,
     hasPermission,
     hasRole,
