@@ -416,6 +416,8 @@ export const useAccountingStore = defineStore('accounting', () => {
   // Prise de service
   async function startShift(employeeId: string, employeeName: string) {
     loading.value = true
+    console.log(`[STORE] Début startShift pour ${employeeName} (${employeeId})`)
+    
     try {
       const now = new Date()
       const serviceTransaction = {
@@ -427,14 +429,21 @@ export const useAccountingStore = defineStore('accounting', () => {
         created_at: now.toISOString()
       }
       
+      console.log('[STORE] Création transaction Firebase...', serviceTransaction)
       const docRef = await addDoc(collection(db, 'serviceTransactions'), serviceTransaction)
+      console.log('[STORE] Transaction créée avec ID:', docRef.id)
+      
       serviceTransactions.value.unshift({ id: docRef.id, ...serviceTransaction })
       
       // Marquer comme en service
       activeShifts.value.set(employeeId, now)
+      console.log(`[STORE] Employé ${employeeId} ajouté aux services actifs`)
+      console.log('[STORE] Services actifs actuels:', Array.from(activeShifts.value.keys()))
       
     } catch (err: any) {
+      console.error('[STORE] Erreur dans startShift:', err)
       error.value = err.message
+      throw err
     } finally {
       loading.value = false
     }
@@ -443,10 +452,14 @@ export const useAccountingStore = defineStore('accounting', () => {
   // Fin de service
   async function endShift(employeeId: string, employeeName: string) {
     loading.value = true
+    console.log(`[STORE] Début endShift pour ${employeeName} (${employeeId})`)
+    
     try {
       const startTime = activeShifts.value.get(employeeId)
       const endTime = new Date()
       const shiftDuration = startTime ? Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) : 0
+      
+      console.log(`[STORE] Durée calculée: ${shiftDuration} minutes`)
       
       const serviceTransaction = {
         type: 'fin_service' as const,
@@ -458,14 +471,21 @@ export const useAccountingStore = defineStore('accounting', () => {
         created_at: endTime.toISOString()
       }
       
+      console.log('[STORE] Création transaction Firebase...', serviceTransaction)
       const docRef = await addDoc(collection(db, 'serviceTransactions'), serviceTransaction)
+      console.log('[STORE] Transaction créée avec ID:', docRef.id)
+      
       serviceTransactions.value.unshift({ id: docRef.id, ...serviceTransaction })
       
       // Retirer du service actif
       activeShifts.value.delete(employeeId)
+      console.log(`[STORE] Employé ${employeeId} retiré des services actifs`)
+      console.log('[STORE] Services actifs actuels:', Array.from(activeShifts.value.keys()))
       
     } catch (err: any) {
+      console.error('[STORE] Erreur dans endShift:', err)
       error.value = err.message
+      throw err
     } finally {
       loading.value = false
     }
@@ -546,6 +566,52 @@ export const useAccountingStore = defineStore('accounting', () => {
       fetchServiceItems(),
       fetchServiceTransactions()
     ])
+    
+    // Reconstruire les services actifs basés sur l'historique
+    reconstructActiveShifts()
+  }
+
+  // Reconstruire les services actifs basés sur l'historique
+  function reconstructActiveShifts() {
+    activeShifts.value.clear()
+    
+    // Grouper les transactions par employé
+    const shiftsByEmployee = new Map<string, ServiceTransaction[]>()
+    
+    serviceTransactions.value
+      .filter(t => t.type === 'prise_service' || t.type === 'fin_service')
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .forEach(transaction => {
+        const employeeId = transaction.employee_id
+        if (!shiftsByEmployee.has(employeeId)) {
+          shiftsByEmployee.set(employeeId, [])
+        }
+        shiftsByEmployee.get(employeeId)!.push(transaction)
+      })
+    
+    // Pour chaque employé, vérifier s'il est actuellement en service
+    shiftsByEmployee.forEach((transactions, employeeId) => {
+      let isOnDuty = false
+      let lastStartTime: Date | null = null
+      
+      for (const transaction of transactions) {
+        if (transaction.type === 'prise_service') {
+          isOnDuty = true
+          lastStartTime = new Date(transaction.created_at)
+        } else if (transaction.type === 'fin_service') {
+          isOnDuty = false
+          lastStartTime = null
+        }
+      }
+      
+      // Si l'employé est en service, l'ajouter à activeShifts
+      if (isOnDuty && lastStartTime) {
+        activeShifts.value.set(employeeId, lastStartTime)
+        console.log(`Employé ${employeeId} reconstruit comme en service depuis ${lastStartTime.toLocaleTimeString()}`)
+      }
+    })
+    
+    console.log(`Services actifs reconstruits: ${activeShifts.value.size} employé(s) en service`)
   }
 
   return {
