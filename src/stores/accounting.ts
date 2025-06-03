@@ -611,6 +611,37 @@ export const useAccountingStore = defineStore('accounting', () => {
       
       console.log(`[STORE] Durée calculée: ${shiftDuration} minutes`)
       
+      // *** NOUVEAU: Convertir les heures de service et les ajouter à l'employé ***
+      if (shiftDuration > 0 && startTime) {
+        const employee = employees.value.find(emp => emp.id === employeeId)
+        if (employee) {
+          // Convertir les minutes en heures décimales
+          const shiftHours = shiftDuration / 60
+          const newTotalHours = employee.hours_worked + shiftHours
+          
+          // Calculer les nouveaux gains incluant les primes automatiques
+          const automaticBonuses = calculateEmployeeBonuses(employeeId)
+          const manualEarnings = newTotalHours * employee.hourly_rate
+          const manualBonus = employee.bonus_amount
+          const newTotalEarnings = manualEarnings + manualBonus + automaticBonuses.total
+          
+          console.log(`[STORE] Mise à jour employé ${employeeName}:`, {
+            oldHours: employee.hours_worked,
+            shiftHours,
+            newTotalHours,
+            manualEarnings,
+            automaticBonuses: automaticBonuses.total,
+            newTotalEarnings
+          })
+          
+          // Mettre à jour l'employé avec les nouvelles heures et gains
+          await updateEmployee(employeeId, {
+            hours_worked: newTotalHours,
+            total_earnings: newTotalEarnings
+          })
+        }
+      }
+      
       const serviceTransaction = {
         type: 'fin_service' as const,
         employee_id: employeeId,
