@@ -131,7 +131,7 @@
                   />
                   <button
                     type="button"
-                    @click="$refs.drivingLicenseInput.click()"
+                    @click="triggerFileUpload('driving_license')"
                     class="w-full flex justify-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400"
                   >
                     <div class="text-center">
@@ -177,7 +177,7 @@
                   />
                   <button
                     type="button"
-                    @click="$refs.ppaInput.click()"
+                    @click="triggerFileUpload('ppa')"
                     class="w-full flex justify-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400"
                   >
                     <div class="text-center">
@@ -223,7 +223,7 @@
                   />
                   <button
                     type="button"
-                    @click="$refs.identityCardInput.click()"
+                    @click="triggerFileUpload('identity_card')"
                     class="w-full flex justify-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400"
                   >
                     <div class="text-center">
@@ -269,7 +269,7 @@
                   />
                   <button
                     type="button"
-                    @click="$refs.passportInput.click()"
+                    @click="triggerFileUpload('passport')"
                     class="w-full flex justify-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400"
                   >
                     <div class="text-center">
@@ -337,6 +337,12 @@ import AppLayout from '@/components/AppLayout.vue'
 const authStore = useAuthStore()
 const loading = ref(false)
 
+// Refs pour les inputs de fichiers
+const drivingLicenseInput = ref<HTMLInputElement>()
+const ppaInput = ref<HTMLInputElement>()
+const identityCardInput = ref<HTMLInputElement>()
+const passportInput = ref<HTMLInputElement>()
+
 // État du profil
 const profile = ref<Partial<UserProfile>>({
   first_name: '',
@@ -401,6 +407,24 @@ const saveProfile = async () => {
     alert('Erreur lors de la sauvegarde du profil')
   } finally {
     loading.value = false
+  }
+}
+
+// Fonctions pour déclencher l'upload de fichiers
+const triggerFileUpload = (inputType: string) => {
+  switch (inputType) {
+    case 'driving_license':
+      drivingLicenseInput.value?.click()
+      break
+    case 'ppa':
+      ppaInput.value?.click()
+      break
+    case 'identity_card':
+      identityCardInput.value?.click()
+      break
+    case 'passport':
+      passportInput.value?.click()
+      break
   }
 }
 
