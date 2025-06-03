@@ -22,7 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
       const userDoc = await getDoc(doc(db, 'users', userId))
       
       if (userDoc.exists()) {
-        const userData = userDoc.data() as User
+        const userData = userDoc.data()
         
         // Si l'utilisateur est marqué comme supprimé
         if (userData.is_deleted) {
@@ -31,7 +31,17 @@ export const useAuthStore = defineStore('auth', () => {
           throw new Error('Ce compte a été désactivé. Contactez un administrateur.')
         }
         
-        return { id: userDoc.id, ...userData } as User
+        return { 
+          id: userDoc.id,
+          email: userData.email,
+          role: userData.role,
+          permissions: userData.permissions || [],
+          created_at: userData.created_at,
+          is_deleted: userData.is_deleted,
+          deleted_at: userData.deleted_at,
+          deleted_by: userData.deleted_by,
+          last_token_revocation: userData.last_token_revocation
+        } as User
       }
       
       return null
