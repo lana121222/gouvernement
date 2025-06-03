@@ -1454,25 +1454,6 @@ export const useAccountingStore = defineStore('accounting', () => {
     }
   }
 
-  // Exporter une sauvegarde vers JSON
-  function exportBackupToJSON(backup: any) {
-    const exportData = {
-      ...backup,
-      exported_at: new Date().toISOString(),
-      export_version: '1.0'
-    }
-    
-    const dataStr = JSON.stringify(exportData, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(dataBlob)
-    link.download = `backup_${backup.id}_${new Date().toISOString().split('T')[0]}.json`
-    link.click()
-    
-    URL.revokeObjectURL(link.href)
-  }
-
   return {
     employees,
     transactions,
@@ -1532,7 +1513,6 @@ export const useAccountingStore = defineStore('accounting', () => {
     fetchBackups,
     createManualBackup,
     restoreBackup,
-    deleteBackup,
-    exportBackupToJSON
+    deleteBackup
   }
 }) 
