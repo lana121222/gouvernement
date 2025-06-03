@@ -392,9 +392,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
+import { useNotificationStore } from '@/stores/notifications'
 import type { BonusConfig, Employee } from '@/lib/firebase'
 
 const accountingStore = useAccountingStore()
+const notificationStore = useNotificationStore()
 
 // État des modales
 const showAddModal = ref(false)
@@ -529,9 +531,18 @@ const toggleConfigStatus = async (config: BonusConfig) => {
     await accountingStore.updateBonusConfig(config.id, {
       is_active: !config.is_active
     })
+    
+    const action = config.is_active ? 'désactivée' : 'activée'
+    notificationStore.success(
+      'Statut modifié',
+      `Configuration "${formatGradeName(config.grade)}" ${action} avec succès`
+    )
   } catch (error) {
     console.error('Erreur lors du changement de statut:', error)
-    alert('Erreur lors du changement de statut')
+    notificationStore.error(
+      'Erreur de modification',
+      'Impossible de modifier le statut de la configuration'
+    )
   }
 }
 
@@ -545,14 +556,24 @@ const submitConfig = async () => {
   try {
     if (showEditModal.value) {
       await accountingStore.updateBonusConfig(editingConfigId.value, formData.value)
+      notificationStore.success(
+        'Configuration modifiée',
+        `Grade "${formatGradeName(formData.value.grade!)}" mis à jour avec succès`
+      )
     } else {
       await accountingStore.addBonusConfig(formData.value as Omit<BonusConfig, 'id' | 'created_at' | 'updated_at'>)
+      notificationStore.success(
+        'Configuration ajoutée',
+        `Grade "${formatGradeName(formData.value.grade!)}" créé avec succès`
+      )
     }
     closeModals()
-    alert('Configuration enregistrée avec succès !')
   } catch (error) {
     console.error('Erreur lors de l\'enregistrement:', error)
-    alert('Erreur lors de l\'enregistrement')
+    notificationStore.error(
+      'Erreur d\'enregistrement',
+      'Impossible de sauvegarder la configuration'
+    )
   }
 }
 
@@ -564,10 +585,17 @@ const updateEmployeeGrade = async () => {
       grade: newGrade.value as any
     })
     showGradeModal.value = false
-    alert('Grade mis à jour avec succès !')
+    
+    notificationStore.success(
+      'Grade modifié',
+      `${selectedEmployee.value.first_name} ${selectedEmployee.value.last_name} est maintenant ${formatGradeName(newGrade.value)}`
+    )
   } catch (error) {
     console.error('Erreur lors de la mise à jour du grade:', error)
-    alert('Erreur lors de la mise à jour du grade')
+    notificationStore.error(
+      'Erreur de mise à jour',
+      'Impossible de modifier le grade de l\'employé'
+    )
   }
 }
 
@@ -630,22 +658,30 @@ const onDrop = (event: DragEvent, dropIndex: number) => {
 
 // === NOUVELLE FONCTION: Suppression ===
 const deleteConfig = async (config: BonusConfig) => {
-  if (!confirm(`Êtes-vous sûr de vouloir supprimer la configuration pour le grade "${formatGradeName(config.grade)}" ?\\n\\nCette action est irréversible !`)) {
-    return
-  }
-  
-  try {
-    await accountingStore.deleteBonusConfig(config.id)
-    
-    // Supprimer le grade de l'ordre personnalisé s'il y est
-    gradeOrder.value = gradeOrder.value.filter(grade => grade !== config.grade)
-    localStorage.setItem('bonus_grades_order', JSON.stringify(gradeOrder.value))
-    
-    alert('Configuration supprimée avec succès !')
-  } catch (error) {
-    console.error('Erreur lors de la suppression:', error)
-    alert('Erreur lors de la suppression de la configuration')
-  }
+  notificationStore.confirm(
+    'Supprimer la configuration',
+    `Êtes-vous sûr de vouloir supprimer la configuration pour le grade "${formatGradeName(config.grade)}" ? Cette action est irréversible !`,
+    async () => {
+      try {
+        await accountingStore.deleteBonusConfig(config.id)
+        
+        // Supprimer le grade de l'ordre personnalisé s'il y est
+        gradeOrder.value = gradeOrder.value.filter(grade => grade !== config.grade)
+        localStorage.setItem('bonus_grades_order', JSON.stringify(gradeOrder.value))
+        
+        notificationStore.success(
+          'Configuration supprimée',
+          `Grade "${formatGradeName(config.grade)}" supprimé avec succès`
+        )
+      } catch (error) {
+        console.error('Erreur lors de la suppression:', error)
+        notificationStore.error(
+          'Erreur de suppression',
+          'Impossible de supprimer la configuration'
+        )
+      }
+    }
+  )
 }
 
 // === NOUVELLE FONCTION: Restaurer l'ordre ===

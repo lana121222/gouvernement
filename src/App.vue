@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import NotificationContainer from '@/components/NotificationContainer.vue'
 </script>
 
 <template>
   <div class="w-full min-h-screen">
     <RouterView />
+    <NotificationContainer />
   </div>
 </template>
 
