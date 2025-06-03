@@ -546,6 +546,12 @@ export const useAccountingStore = defineStore('accounting', () => {
     return Math.round((new Date().getTime() - startTime.getTime()) / (1000 * 60))
   }
 
+  // Obtenir le nom complet d'un employé par son ID
+  function getEmployeeName(employeeId: string): string {
+    const employee = employees.value.find(emp => emp.id === employeeId)
+    return employee ? `${employee.first_name} ${employee.last_name}` : 'Employé inconnu'
+  }
+
   // Services par catégorie
   const servicesByCategory = computed(() => {
     const grouped: Record<string, ServiceItem[]> = {}
@@ -559,17 +565,6 @@ export const useAccountingStore = defineStore('accounting', () => {
     
     return grouped
   })
-
-  // Fonctions d'initialisation mise à jour
-  async function initializeServiceStore() {
-    await Promise.all([
-      fetchServiceItems(),
-      fetchServiceTransactions()
-    ])
-    
-    // Reconstruire les services actifs basés sur l'historique
-    reconstructActiveShifts()
-  }
 
   // Reconstruire les services actifs basés sur l'historique
   function reconstructActiveShifts() {
@@ -614,6 +609,131 @@ export const useAccountingStore = defineStore('accounting', () => {
     console.log(`Services actifs reconstruits: ${activeShifts.value.size} employé(s) en service`)
   }
 
+  // Sauvegarder l'état des services actifs avant fermeture
+  function saveActiveShiftsState() {
+    const activeShiftsData = Array.from(activeShifts.value.entries()).map(([employeeId, startTime]) => ({
+      employeeId,
+      startTime: startTime.toISOString(),
+      employeeName: employees.value.find(emp => emp.id === employeeId)?.first_name + ' ' + 
+                    employees.value.find(emp => emp.id === employeeId)?.last_name || 'Employé inconnu'
+    }))
+    
+    localStorage.setItem('activeShifts', JSON.stringify(activeShiftsData))
+    console.log('[STORE] État des services sauvegardé:', activeShiftsData)
+  }
+
+  // Restaurer l'état des services actifs au démarrage
+  function restoreActiveShiftsState() {
+    try {
+      const savedState = localStorage.getItem('activeShifts')
+      if (savedState) {
+        const activeShiftsData = JSON.parse(savedState)
+        
+        // Vérifier si les données ne sont pas trop anciennes (plus de 24h)
+        const maxAge = 24 * 60 * 60 * 1000 // 24 heures en millisecondes
+        const now = new Date().getTime()
+        
+        activeShiftsData.forEach((shift: any) => {
+          const startTime = new Date(shift.startTime)
+          const age = now - startTime.getTime()
+          
+          if (age < maxAge) {
+            activeShifts.value.set(shift.employeeId, startTime)
+            console.log(`[STORE] Service restauré pour ${shift.employeeName} depuis ${startTime.toLocaleTimeString()}`)
+          } else {
+            console.log(`[STORE] Service trop ancien ignoré pour ${shift.employeeName}`)
+          }
+        })
+        
+        // Nettoyer le localStorage après restauration
+        localStorage.removeItem('activeShifts')
+        console.log(`[STORE] ${activeShifts.value.size} service(s) restauré(s)`)
+      }
+    } catch (error) {
+      console.error('[STORE] Erreur lors de la restauration des services:', error)
+    }
+  }
+
+  // Terminer automatiquement tous les services actifs
+  async function endAllActiveShifts() {
+    console.log('[STORE] Terminaison automatique de tous les services actifs...')
+    
+    const shiftsToEnd = Array.from(activeShifts.value.entries())
+    
+    for (const [employeeId, startTime] of shiftsToEnd) {
+      try {
+        const employee = employees.value.find(emp => emp.id === employeeId)
+        const employeeName = employee ? `${employee.first_name} ${employee.last_name}` : 'Employé inconnu'
+        
+        console.log(`[STORE] Terminaison automatique du service pour ${employeeName}`)
+        await endShift(employeeId, employeeName)
+      } catch (error) {
+        console.error(`[STORE] Erreur lors de la terminaison automatique pour ${employeeId}:`, error)
+      }
+    }
+    
+    console.log('[STORE] Terminaison automatique terminée')
+  }
+
+  // Gérer les événements de fermeture du navigateur
+  function setupAutoEndShifts() {
+    // Événement beforeunload - sauvegarde avant fermeture
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (activeShifts.value.size > 0) {
+        saveActiveShiftsState()
+        
+        // Optionnel: demander confirmation si des services sont actifs
+        const message = `${activeShifts.value.size} employé(s) en service seront automatiquement mis hors service.`
+        event.returnValue = message
+        return message
+      }
+    }
+
+    // Événement unload - terminaison automatique (ne fonctionne pas toujours)
+    const handleUnload = () => {
+      if (activeShifts.value.size > 0) {
+        // Tentative de terminaison synchrone (limitée par les navigateurs)
+        endAllActiveShifts()
+      }
+    }
+
+    // Événement visibilitychange - gestion des onglets cachés
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && activeShifts.value.size > 0) {
+        saveActiveShiftsState()
+      }
+    }
+
+    // Enregistrer les événements
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('unload', handleUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Retourner une fonction de nettoyage
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('unload', handleUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }
+
+  // Fonctions d'initialisation mise à jour
+  async function initializeServiceStore() {
+    await Promise.all([
+      fetchServiceItems(),
+      fetchServiceTransactions()
+    ])
+    
+    // D'abord restaurer l'état sauvegardé
+    restoreActiveShiftsState()
+    
+    // Puis reconstruire basé sur l'historique (pour les nouveaux services)
+    reconstructActiveShifts()
+    
+    // Configurer la gestion automatique des fermetures
+    setupAutoEndShifts()
+  }
+
   return {
     employees,
     transactions,
@@ -650,6 +770,11 @@ export const useAccountingStore = defineStore('accounting', () => {
     addServiceSale,
     isEmployeeOnDuty,
     getCurrentShiftDuration,
-    initializeServiceStore
+    initializeServiceStore,
+    endAllActiveShifts,
+    saveActiveShiftsState,
+    restoreActiveShiftsState,
+    setupAutoEndShifts,
+    getEmployeeName
   }
 }) 

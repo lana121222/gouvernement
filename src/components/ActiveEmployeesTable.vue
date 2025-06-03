@@ -27,7 +27,7 @@
               Taux horaire
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Heures
+              Heures de service
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Prime
@@ -45,8 +45,22 @@
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex items-center">
                 <div class="h-10 w-10 flex-shrink-0">
-                  <div class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                    <span class="text-sm font-medium text-primary-600">
+                  <div 
+                    :class="[
+                      'h-10 w-10 rounded-full flex items-center justify-center',
+                      accountingStore.isEmployeeOnDuty(employee.id) 
+                        ? 'bg-green-100 ring-2 ring-green-500' 
+                        : 'bg-primary-100'
+                    ]"
+                  >
+                    <span 
+                      :class="[
+                        'text-sm font-medium',
+                        accountingStore.isEmployeeOnDuty(employee.id) 
+                          ? 'text-green-600' 
+                          : 'text-primary-600'
+                      ]"
+                    >
                       {{ employee.first_name.charAt(0) }}{{ employee.last_name.charAt(0) }}
                     </span>
                   </div>
@@ -54,6 +68,12 @@
                 <div class="ml-4">
                   <div class="text-sm font-medium text-gray-900">
                     {{ employee.first_name }} {{ employee.last_name }}
+                    <span 
+                      v-if="accountingStore.isEmployeeOnDuty(employee.id)"
+                      class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      🟢 En service
+                    </span>
                   </div>
                   <div class="text-sm text-gray-500">{{ employee.email }}</div>
                 </div>
@@ -66,14 +86,38 @@
               ${{ formatCurrency(employee.hourly_rate) }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <input
-                :value="employee.hours_worked"
-                @change="updateHours(employee.id, $event)"
-                type="number"
-                min="0"
-                step="0.5"
-                class="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
-              />
+              <div class="space-y-1">
+                <!-- Heures de service automatiques (temps réel) -->
+                <div class="flex items-center space-x-2">
+                  <div 
+                    :class="[
+                      'text-sm font-medium',
+                      accountingStore.isEmployeeOnDuty(employee.id) 
+                        ? 'text-green-600' 
+                        : 'text-gray-900'
+                    ]"
+                  >
+                    {{ formatServiceHours(employee.id) }}
+                  </div>
+                  <div 
+                    v-if="accountingStore.isEmployeeOnDuty(employee.id)"
+                    class="w-2 h-2 bg-green-500 rounded-full animate-pulse"
+                  ></div>
+                </div>
+                
+                <!-- Heures manuelles (affichage secondaire) -->
+                <div class="text-xs text-gray-500">
+                  Manuel: 
+                  <input
+                    :value="employee.hours_worked"
+                    @change="updateHours(employee.id, $event)"
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    class="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
+                  />h
+                </div>
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <input
@@ -86,12 +130,24 @@
               />
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <span :class="[
-                'text-lg',
-                employee.total_earnings > 0 ? 'text-green-600' : 'text-gray-900'
-              ]">
-                ${{ formatCurrency(employee.total_earnings) }}
-              </span>
+              <div class="space-y-1">
+                <!-- Total avec heures de service -->
+                <div 
+                  :class="[
+                    'text-lg font-medium',
+                    getTotalEarningsWithService(employee) > 0 ? 'text-green-600' : 'text-gray-900'
+                  ]"
+                >
+                  ${{ formatCurrency(getTotalEarningsWithService(employee)) }}
+                </div>
+                
+                <!-- Détail du calcul -->
+                <div class="text-xs text-gray-500">
+                  Service: ${{ formatCurrency(getServiceEarnings(employee.id, employee.hourly_rate)) }}
+                  <br>
+                  Manuel: ${{ formatCurrency(employee.total_earnings) }}
+                </div>
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div class="flex justify-end space-x-2">
@@ -161,8 +217,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { Employee } from '@/lib/firebase'
+import { useAccountingStore } from '@/stores/accounting'
 
 interface Props {
   employees: Employee[]
@@ -180,8 +237,14 @@ const emit = defineEmits<{
   'update-bonus': [id: string, bonus: number]
 }>()
 
+const accountingStore = useAccountingStore()
+
+// Timer pour mise à jour temps réel
+const currentTime = ref(new Date())
+let timeInterval: number | null = null
+
 const totalPayroll = computed(() => 
-  props.employees.reduce((sum, emp) => sum + emp.total_earnings, 0)
+  props.employees.reduce((sum, emp) => sum + getTotalEarningsWithService(emp), 0)
 )
 
 const formatCurrency = (amount: number) => {
@@ -202,4 +265,55 @@ const updateBonus = (id: string, event: Event) => {
   const bonus = parseFloat(target.value) || 0
   emit('update-bonus', id, bonus)
 }
+
+// Formatter les heures de service (temps réel)
+const formatServiceHours = (employeeId: string) => {
+  if (!accountingStore.isEmployeeOnDuty(employeeId)) {
+    return '0h 0min'
+  }
+  
+  const minutes = accountingStore.getCurrentShiftDuration(employeeId)
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  
+  if (hours > 0) {
+    return `${hours}h ${mins}min`
+  }
+  return `${mins}min`
+}
+
+// Calculer les gains basés sur les heures de service
+const getServiceEarnings = (employeeId: string, hourlyRate: number) => {
+  if (!accountingStore.isEmployeeOnDuty(employeeId)) {
+    return 0
+  }
+  
+  const minutes = accountingStore.getCurrentShiftDuration(employeeId)
+  const hours = minutes / 60
+  
+  return hours * hourlyRate
+}
+
+// Calculer le total des gains (service + manuel + prime)
+const getTotalEarningsWithService = (employee: Employee) => {
+  const serviceEarnings = getServiceEarnings(employee.id, employee.hourly_rate)
+  const manualEarnings = (employee.hours_worked * employee.hourly_rate)
+  const bonus = employee.bonus_amount
+  
+  return serviceEarnings + manualEarnings + bonus
+}
+
+// Démarrer le timer temps réel
+onMounted(() => {
+  timeInterval = window.setInterval(() => {
+    currentTime.value = new Date()
+  }, 1000) // Mise à jour chaque seconde
+})
+
+// Nettoyer le timer
+onUnmounted(() => {
+  if (timeInterval) {
+    clearInterval(timeInterval)
+  }
+})
 </script> 

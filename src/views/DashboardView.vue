@@ -96,6 +96,66 @@
         </div>
       </div>
 
+      <!-- Services en cours (si accès comptabilité) -->
+      <div v-if="authStore.canAccessAccounting" class="mb-8">
+        <div class="card">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Services en cours</h3>
+            <router-link
+              to="/accounting?tab=services"
+              class="text-sm text-primary-600 hover:text-primary-500"
+            >
+              Voir tout →
+            </router-link>
+          </div>
+          
+          <div v-if="accountingStore.activeShifts.size === 0" class="text-center py-6">
+            <div class="text-gray-400 text-4xl mb-2">⏰</div>
+            <p class="text-gray-500">Aucun employé en service actuellement</p>
+          </div>
+          
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              v-for="[employeeId, startTime] in activeShifts"
+              :key="employeeId"
+              class="bg-green-50 border border-green-200 rounded-lg p-4"
+            >
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                  <span class="text-white font-medium text-sm">
+                    {{ getEmployeeInitials(employeeId) }}
+                  </span>
+                </div>
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-900">
+                    {{ getEmployeeName(employeeId) }}
+                  </div>
+                  <div class="text-xs text-green-600 font-medium">
+                    🟢 {{ formatDuration(accountingStore.getCurrentShiftDuration(employeeId)) }}
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    Depuis {{ formatTime(startTime) }}
+                  </div>
+                </div>
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Résumé -->
+          <div v-if="accountingStore.activeShifts.size > 0" class="mt-4 pt-4 border-t border-gray-200">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600">Total employés en service:</span>
+              <span class="font-medium text-gray-900">{{ accountingStore.activeShifts.size }}</span>
+            </div>
+            <div class="flex justify-between text-sm mt-1">
+              <span class="text-gray-600">Temps total cumulé:</span>
+              <span class="font-medium text-green-600">{{ getTotalServiceTime() }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Modal de gestion des utilisateurs -->
       <div v-if="showUserManagement" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-10 mx-auto p-5 border max-w-6xl shadow-lg rounded-md bg-white">
@@ -228,11 +288,76 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
 import UserManagement from '@/components/UserManagement.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useAccountingStore } from '@/stores/accounting'
 
 const authStore = useAuthStore()
+const accountingStore = useAccountingStore()
 const showUserManagement = ref(false)
+
+// Timer pour mise à jour temps réel
+const currentTime = ref(new Date())
+let timeInterval: number | null = null
+
+// Computed pour les services actifs (mise à jour temps réel)
+const activeShifts = computed(() => Array.from(accountingStore.activeShifts.entries()))
+
+const getEmployeeInitials = (employeeId: string) => {
+  const employee = accountingStore.employees.find(emp => emp.id === employeeId)
+  if (!employee) return '??'
+  return `${employee.first_name.charAt(0)}${employee.last_name.charAt(0)}`
+}
+
+const getEmployeeName = (employeeId: string) => {
+  return accountingStore.getEmployeeName(employeeId)
+}
+
+const formatDuration = (minutes: number) => {
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  
+  if (hours > 0) {
+    return `${hours}h ${mins}min`
+  }
+  return `${mins}min`
+}
+
+const formatTime = (startTime: Date) => {
+  return startTime.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const getTotalServiceTime = () => {
+  let totalMinutes = 0
+  
+  for (const [employeeId] of activeShifts.value) {
+    totalMinutes += accountingStore.getCurrentShiftDuration(employeeId)
+  }
+  
+  return formatDuration(totalMinutes)
+}
+
+// Initialiser le store au montage
+onMounted(async () => {
+  if (authStore.canAccessAccounting) {
+    await accountingStore.initializeServiceStore()
+  }
+  
+  // Démarrer le timer pour mise à jour temps réel
+  timeInterval = window.setInterval(() => {
+    currentTime.value = new Date()
+  }, 1000)
+})
+
+// Nettoyer le timer au démontage
+onUnmounted(() => {
+  if (timeInterval) {
+    clearInterval(timeInterval)
+  }
+})
 </script> 
