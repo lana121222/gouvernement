@@ -8,6 +8,7 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
+  deleteField,
   query, 
   orderBy, 
   where 
@@ -100,10 +101,23 @@ export const useAccountingStore = defineStore('accounting', () => {
         }
       }
 
-      const updatedData = { 
-        ...updates, 
+      // Préparer les données en gérant les valeurs undefined
+      const updatedData: any = { 
         updated_at: new Date().toISOString() 
       }
+
+      // Ajouter seulement les champs qui ne sont pas undefined
+      Object.keys(updates).forEach(key => {
+        const value = updates[key as keyof Employee]
+        if (value !== undefined) {
+          updatedData[key] = value
+        } else {
+          // Pour les champs qui doivent être supprimés (undefined), utiliser deleteField
+          if (key === 'termination_date' || key === 'termination_reason') {
+            updatedData[key] = deleteField()
+          }
+        }
+      })
       
       console.log('Données à mettre à jour:', updatedData)
       
@@ -111,7 +125,22 @@ export const useAccountingStore = defineStore('accounting', () => {
       
       const index = employees.value.findIndex(emp => emp.id === id)
       if (index !== -1) {
-        employees.value[index] = { ...employees.value[index], ...updatedData }
+        // Pour la mise à jour locale, on supprime les champs qui étaient undefined
+        const localUpdate = { ...updates }
+        if (updates.termination_date === undefined) {
+          delete (employees.value[index] as any).termination_date
+          delete localUpdate.termination_date
+        }
+        if (updates.termination_reason === undefined) {
+          delete (employees.value[index] as any).termination_reason
+          delete localUpdate.termination_reason
+        }
+        
+        employees.value[index] = { 
+          ...employees.value[index], 
+          ...localUpdate,
+          updated_at: new Date().toISOString()
+        }
         console.log('Employé mis à jour localement:', employees.value[index])
       } else {
         console.warn('Employé non trouvé dans la liste locale:', id)
