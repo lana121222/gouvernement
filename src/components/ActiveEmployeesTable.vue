@@ -120,30 +120,27 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
               <div class="space-y-1">
-                <!-- Affichage basé sur le temps de service -->
-                <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="text-lg font-semibold text-green-600">
-                  ${{ formatCurrency(getServiceEarnings(employee.id, employee.hourly_rate) + employee.bonus_amount) }}
-                </div>
-                
-                <!-- Si pas en service mais a des heures manuelles -->
-                <div v-else-if="employee.total_earnings > 0" class="text-lg font-medium text-gray-900">
-                  ${{ formatCurrency(employee.total_earnings) }}
-                </div>
-                
-                <!-- Si aucun gain -->
-                <div v-else class="text-lg font-medium text-gray-500">
-                  $0.00
+                <!-- Total complet (service + manuel + prime) -->
+                <div :class="[
+                  'text-lg font-medium',
+                  accountingStore.isEmployeeOnDuty(employee.id) ? 'text-green-600' : 
+                  getTotalEarningsWithService(employee) > 0 ? 'text-gray-900' : 'text-gray-500'
+                ]">
+                  ${{ formatCurrency(getTotalEarningsWithService(employee)) }}
                 </div>
                 
                 <!-- Détail du calcul -->
                 <div class="text-xs text-gray-500">
                   <span v-if="accountingStore.isEmployeeOnDuty(employee.id)">
                     Service: ${{ formatCurrency(getServiceEarnings(employee.id, employee.hourly_rate)) }}
+                    <span v-if="employee.hours_worked > 0"> + Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}</span>
                     <span v-if="employee.bonus_amount > 0"> + Prime: ${{ formatCurrency(employee.bonus_amount) }}</span>
                   </span>
-                  <span v-else-if="employee.total_earnings > 0">
-                    Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}
-                    <span v-if="employee.bonus_amount > 0"> + Prime: ${{ formatCurrency(employee.bonus_amount) }}</span>
+                  <span v-else-if="getTotalEarningsWithService(employee) > 0">
+                    <span v-if="employee.hours_worked > 0">Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}</span>
+                    <span v-if="employee.bonus_amount > 0">
+                      <span v-if="employee.hours_worked > 0"> + </span>Prime: ${{ formatCurrency(employee.bonus_amount) }}
+                    </span>
                   </span>
                   <span v-else>
                     Aucun gain enregistré
@@ -155,7 +152,7 @@
               <div class="flex justify-end space-x-2">
                 <!-- Bouton Payer -->
                 <button
-                  v-if="employee.total_earnings > 0"
+                  v-if="hasEarningsToPay(employee)"
                   @click="$emit('pay', employee)"
                   class="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-50"
                   title="Payer l'employé"
@@ -306,6 +303,20 @@ const getServiceEarnings = (employeeId: string, hourlyRate: number) => {
   const hours = totalSeconds / 3600 // Conversion précise en heures décimales
   
   return hours * hourlyRate
+}
+
+// Calculer le total des gains (service + manuel + prime)
+const getTotalEarningsWithService = (employee: Employee) => {
+  const serviceEarnings = getServiceEarnings(employee.id, employee.hourly_rate)
+  const manualEarnings = employee.hours_worked * employee.hourly_rate
+  const bonus = employee.bonus_amount
+  
+  return serviceEarnings + manualEarnings + bonus
+}
+
+// Vérifier si l'employé a des gains à payer
+const hasEarningsToPay = (employee: Employee) => {
+  return getTotalEarningsWithService(employee) > 0
 }
 
 // Démarrer le timer temps réel
