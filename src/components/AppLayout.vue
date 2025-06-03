@@ -75,27 +75,80 @@
                   @click="showUserMenu = !showUserMenu"
                   class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
-                  <div class="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center">
-                    <span class="text-white font-medium">
-                      {{ authStore.user?.email?.charAt(0).toUpperCase() }}
-                    </span>
+                  <!-- Photo de profil ou avatar par défaut -->
+                  <div class="h-8 w-8 rounded-full overflow-hidden border-2 border-gray-200">
+                    <img 
+                      v-if="userProfile?.profile_photo_url" 
+                      :src="userProfile.profile_photo_url" 
+                      :alt="`Photo de ${userProfile.first_name || 'profil'}`"
+                      class="w-full h-full object-cover"
+                    />
+                    <div v-else class="h-full w-full bg-primary-600 flex items-center justify-center">
+                      <span class="text-white font-medium text-xs">
+                        {{ authStore.user?.email?.charAt(0).toUpperCase() }}
+                      </span>
+                    </div>
                   </div>
                 </button>
 
                 <!-- Menu déroulant -->
                 <div
                   v-if="showUserMenu"
-                  class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+                  class="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
                 >
                   <div class="py-1">
-                    <div class="px-4 py-2 text-sm text-gray-700 border-b">
-                      {{ authStore.user?.email }}
-                      <div class="text-xs text-gray-500">{{ authStore.user?.role }}</div>
+                    <!-- Informations utilisateur avec photo -->
+                    <div class="px-4 py-3 border-b border-gray-100">
+                      <div class="flex items-center space-x-3">
+                        <!-- Photo de profil dans le menu -->
+                        <div class="h-10 w-10 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
+                          <img 
+                            v-if="userProfile?.profile_photo_url" 
+                            :src="userProfile.profile_photo_url" 
+                            :alt="`Photo de ${userProfile.first_name || 'profil'}`"
+                            class="w-full h-full object-cover"
+                          />
+                          <div v-else class="h-full w-full bg-primary-600 flex items-center justify-center">
+                            <span class="text-white font-medium text-sm">
+                              {{ authStore.user?.email?.charAt(0).toUpperCase() }}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <!-- Informations utilisateur -->
+                        <div class="flex-1 min-w-0">
+                          <p v-if="userProfile?.first_name || userProfile?.last_name" class="text-sm font-medium text-gray-900 truncate">
+                            {{ userProfile.first_name }} {{ userProfile.last_name }}
+                          </p>
+                          <p class="text-sm text-gray-600 truncate">
+                            {{ authStore.user?.email }}
+                          </p>
+                          <p class="text-xs text-gray-500 capitalize">
+                            {{ authStore.user?.role }}
+                          </p>
+                        </div>
+                      </div>
                     </div>
+                    
+                    <!-- Actions du menu -->
+                    <router-link
+                      to="/profile"
+                      @click="showUserMenu = false"
+                      class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Mon profil
+                    </router-link>
+                    
                     <button
                       @click="handleSignOut"
-                      class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
+                      <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
                       Déconnexion
                     </button>
                   </div>
@@ -115,17 +168,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { db, type UserProfile } from '@/lib/firebase'
+import { doc, getDoc } from 'firebase/firestore'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const showUserMenu = ref(false)
+const userProfile = ref<UserProfile | null>(null)
+
+// Charger le profil utilisateur
+const loadUserProfile = async () => {
+  if (!authStore.user?.id) {
+    userProfile.value = null
+    return
+  }
+  
+  try {
+    console.log('Chargement du profil utilisateur pour le header:', authStore.user.id)
+    const profileDoc = await getDoc(doc(db, 'profiles', authStore.user.id))
+    if (profileDoc.exists()) {
+      userProfile.value = profileDoc.data() as UserProfile
+      console.log('Profil utilisateur chargé dans le header:', userProfile.value.first_name, userProfile.value.last_name)
+    } else {
+      console.log('Aucun profil trouvé pour cet utilisateur')
+      userProfile.value = null
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement du profil utilisateur:', error)
+    userProfile.value = null
+  }
+}
 
 const handleSignOut = async () => {
   await authStore.signOut()
   showUserMenu.value = false
+  userProfile.value = null
   router.push('/')
 }
 
@@ -137,8 +217,30 @@ const handleClickOutside = (event: Event) => {
   }
 }
 
+// Surveiller les changements d'authentification
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated) {
+    loadUserProfile()
+  } else {
+    userProfile.value = null
+  }
+}, { immediate: true })
+
+// Recharger le profil quand l'utilisateur change
+watch(() => authStore.user?.id, (newUserId) => {
+  if (newUserId) {
+    loadUserProfile()
+  } else {
+    userProfile.value = null
+  }
+})
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  // Charger le profil si l'utilisateur est déjà connecté
+  if (authStore.isAuthenticated) {
+    loadUserProfile()
+  }
 })
 
 onUnmounted(() => {
