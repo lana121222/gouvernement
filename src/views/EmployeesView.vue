@@ -179,7 +179,6 @@
           @pay="showPayModal"
           @terminate="showTerminateModal"
           @delete="openDeleteModal"
-          @update-hours="updateEmployeeHours"
           @update-bonus="updateEmployeeBonus"
         />
       </div>
@@ -386,10 +385,6 @@ const showTerminateModal = (employee: Employee) => {
 const openDeleteModal = (employee: Employee) => {
   selectedEmployee.value = employee
   showDeleteModal.value = true
-}
-
-const updateEmployeeHours = async (id: string, hours: number) => {
-  await accountingStore.updateEmployee(id, { hours_worked: hours })
 }
 
 const updateEmployeeBonus = async (id: string, bonus: number) => {

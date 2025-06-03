@@ -86,37 +86,25 @@
               ${{ formatCurrency(employee.hourly_rate) }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <!-- Affichage principal : Heures de service automatiques -->
-              <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="space-y-1">
-                <div class="flex items-center space-x-2">
+              <!-- Affichage automatique uniquement basé sur le temps de service -->
+              <div class="space-y-1">
+                <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="flex items-center space-x-2">
                   <div class="text-lg font-semibold text-green-600">
                     {{ formatServiceHours(employee.id) }}
                   </div>
                   <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 </div>
-                <div class="text-xs text-green-500">
-                  Service actif depuis {{ getServiceStartTime(employee.id) }}
+                
+                <div v-else class="text-sm text-gray-500">
+                  Hors service
                 </div>
-                <!-- Heures manuelles en complément (si > 0) -->
-                <div v-if="employee.hours_worked > 0" class="text-xs text-gray-400">
-                  + Manuel: {{ employee.hours_worked }}h
+                
+                <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="text-xs text-green-500">
+                  Depuis {{ getServiceStartTime(employee.id) }}
                 </div>
-              </div>
-              
-              <!-- Si pas en service, afficher les heures manuelles -->
-              <div v-else class="space-y-1">
-                <div class="text-sm text-gray-600">
-                  <input
-                    :value="employee.hours_worked"
-                    @change="updateHours(employee.id, $event)"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    class="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
-                  />h (manuel)
-                </div>
-                <div class="text-xs text-gray-400">
-                  Aucun service actif
+                
+                <div v-else-if="employee.hours_worked > 0" class="text-xs text-gray-400">
+                  Heures manuelles: {{ employee.hours_worked }}h
                 </div>
               </div>
             </td>
@@ -131,28 +119,35 @@
               />
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <!-- Si employé en service, affichage prioritaire des gains de service -->
-              <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="space-y-1">
-                <div class="text-lg font-semibold text-green-600">
-                  ${{ formatCurrency(getTotalEarningsWithService(employee)) }}
+              <div class="space-y-1">
+                <!-- Affichage basé sur le temps de service -->
+                <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="text-lg font-semibold text-green-600">
+                  ${{ formatCurrency(getServiceEarnings(employee.id, employee.hourly_rate) + employee.bonus_amount) }}
                 </div>
-                <div class="text-xs text-green-500">
-                  Service: ${{ formatCurrency(getServiceEarnings(employee.id, employee.hourly_rate)) }}
-                </div>
-                <div v-if="employee.hours_worked > 0 || employee.bonus_amount > 0" class="text-xs text-gray-400">
-                  <span v-if="employee.hours_worked > 0">Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}</span>
-                  <span v-if="employee.bonus_amount > 0" class="ml-1">+ Prime: ${{ formatCurrency(employee.bonus_amount) }}</span>
-                </div>
-              </div>
-              
-              <!-- Si pas en service, affichage normal -->
-              <div v-else class="space-y-1">
-                <div class="text-lg font-medium text-gray-900">
+                
+                <!-- Si pas en service mais a des heures manuelles -->
+                <div v-else-if="employee.total_earnings > 0" class="text-lg font-medium text-gray-900">
                   ${{ formatCurrency(employee.total_earnings) }}
                 </div>
+                
+                <!-- Si aucun gain -->
+                <div v-else class="text-lg font-medium text-gray-500">
+                  $0.00
+                </div>
+                
+                <!-- Détail du calcul -->
                 <div class="text-xs text-gray-500">
-                  Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}
-                  <span v-if="employee.bonus_amount > 0">+ Prime: ${{ formatCurrency(employee.bonus_amount) }}</span>
+                  <span v-if="accountingStore.isEmployeeOnDuty(employee.id)">
+                    Service: ${{ formatCurrency(getServiceEarnings(employee.id, employee.hourly_rate)) }}
+                    <span v-if="employee.bonus_amount > 0"> + Prime: ${{ formatCurrency(employee.bonus_amount) }}</span>
+                  </span>
+                  <span v-else-if="employee.total_earnings > 0">
+                    Manuel: ${{ formatCurrency(employee.hours_worked * employee.hourly_rate) }}
+                    <span v-if="employee.bonus_amount > 0"> + Prime: ${{ formatCurrency(employee.bonus_amount) }}</span>
+                  </span>
+                  <span v-else>
+                    Aucun gain enregistré
+                  </span>
                 </div>
               </div>
             </td>
@@ -240,7 +235,6 @@ const emit = defineEmits<{
   pay: [employee: Employee]
   terminate: [employee: Employee]
   delete: [employee: Employee]
-  'update-hours': [id: string, hours: number]
   'update-bonus': [id: string, bonus: number]
 }>()
 
@@ -251,7 +245,13 @@ const currentTime = ref(new Date())
 let timeInterval: number | null = null
 
 const totalPayroll = computed(() => 
-  props.employees.reduce((sum, emp) => sum + getTotalEarningsWithService(emp), 0)
+  props.employees.reduce((sum, emp) => {
+    if (accountingStore.isEmployeeOnDuty(emp.id)) {
+      return sum + getServiceEarnings(emp.id, emp.hourly_rate) + emp.bonus_amount
+    } else {
+      return sum + emp.total_earnings
+    }
+  }, 0)
 )
 
 const formatCurrency = (amount: number) => {
@@ -259,12 +259,6 @@ const formatCurrency = (amount: number) => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount)
-}
-
-const updateHours = (id: string, event: Event) => {
-  const target = event.target as HTMLInputElement
-  const hours = parseFloat(target.value) || 0
-  emit('update-hours', id, hours)
 }
 
 const updateBonus = (id: string, event: Event) => {
@@ -312,15 +306,6 @@ const getServiceEarnings = (employeeId: string, hourlyRate: number) => {
   const hours = totalSeconds / 3600 // Conversion précise en heures décimales
   
   return hours * hourlyRate
-}
-
-// Calculer le total des gains (service + manuel + prime)
-const getTotalEarningsWithService = (employee: Employee) => {
-  const serviceEarnings = getServiceEarnings(employee.id, employee.hourly_rate)
-  const manualEarnings = (employee.hours_worked * employee.hourly_rate)
-  const bonus = employee.bonus_amount
-  
-  return serviceEarnings + manualEarnings + bonus
 }
 
 // Démarrer le timer temps réel
