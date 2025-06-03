@@ -25,6 +25,78 @@
               🧑‍💼 Informations personnelles RP
             </h3>
             
+            <!-- Photo de profil -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-gray-700 mb-3">
+                📸 Photo de profil RP
+              </label>
+              <div class="flex items-center space-x-6">
+                <!-- Prévisualisation photo -->
+                <div class="relative">
+                  <div 
+                    class="w-32 h-32 rounded-full bg-gray-200 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden"
+                    :class="{ 'border-primary-500': profile.profile_photo_url }"
+                  >
+                    <img 
+                      v-if="profile.profile_photo_url" 
+                      :src="profile.profile_photo_url" 
+                      alt="Photo de profil" 
+                      class="w-full h-full object-cover rounded-full cursor-pointer hover:opacity-90 transition-opacity"
+                      @click="openImageModal(profile.profile_photo_url, 'Photo de profil')"
+                    />
+                    <div v-else class="text-center">
+                      <svg class="w-12 h-12 text-gray-400 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span class="text-xs text-gray-500">Aucune photo</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Bouton de suppression -->
+                  <button 
+                    v-if="profile.profile_photo_url"
+                    @click="removeDocument('profile_photo')"
+                    type="button"
+                    class="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <!-- Boutons d'upload -->
+                <div class="flex-1">
+                  <input
+                    ref="profilePhotoInput"
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="handleFileUpload('profile_photo', $event)"
+                  />
+                  <button
+                    type="button"
+                    @click="triggerFileUpload('profile_photo')"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  >
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    {{ profile.profile_photo_url ? 'Changer la photo' : 'Ajouter une photo' }}
+                  </button>
+                  <p class="mt-2 text-xs text-gray-500">
+                    Format recommandé : JPG, PNG (max 5Mo)
+                  </p>
+                  
+                  <!-- Indicateur de traitement -->
+                  <div v-if="uploading === 'profile_photo'" class="mt-2 flex items-center text-sm text-blue-600">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    Traitement de l'image...
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label for="first_name" class="block text-sm font-medium text-gray-700">Prénom</label>
@@ -349,20 +421,28 @@ const modalImage = ref({ url: '', title: '' })
 const drivingLicenseInput = ref<HTMLInputElement>()
 const ppaInput = ref<HTMLInputElement>()
 const identityCardInput = ref<HTMLInputElement>()
+const profilePhotoInput = ref<HTMLInputElement>()
 
 // État du profil
-const profile = ref<Partial<UserProfile>>({
+const profile = ref<UserProfile>({
+  id: '',
+  user_id: '',
+  created_at: '',
+  updated_at: '',
   first_name: '',
   last_name: '',
   phone_number: '',
   birth_date: '',
   postal_address: '',
   discord_username: '',
+  profile_photo_url: '',
   driving_license_url: '',
   ppa_url: '',
   identity_card_url: '',
   other_documents: []
 })
+
+const uploading = ref<string | null>(null)
 
 // Charger le profil existant
 const loadProfile = async () => {
@@ -457,6 +537,9 @@ const triggerFileUpload = (inputType: string) => {
       break
     case 'identity_card':
       identityCardInput.value?.click()
+      break
+    case 'profile_photo':
+      profilePhotoInput.value?.click()
       break
   }
 }
@@ -571,6 +654,9 @@ const handleFileUpload = async (documentType: string, event: Event) => {
         case 'identity_card':
           profile.value.identity_card_url = fileDataUrl
           break
+        case 'profile_photo':
+          profile.value.profile_photo_url = fileDataUrl
+          break
       }
       
       console.log(`Fichier ${file.name} traité avec succès`)
@@ -609,6 +695,9 @@ const removeDocument = (documentType: string) => {
       break
     case 'identity_card':
       profile.value.identity_card_url = ''
+      break
+    case 'profile_photo':
+      profile.value.profile_photo_url = ''
       break
   }
 }

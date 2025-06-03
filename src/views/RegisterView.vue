@@ -57,6 +57,78 @@
               <h3 class="text-lg font-medium text-gray-900 mb-4">
                 🧑‍💼 Informations personnelles RP
               </h3>
+              
+              <!-- Photo de profil -->
+              <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-3">
+                  📸 Photo de profil RP
+                </label>
+                <div class="flex items-center space-x-6">
+                  <!-- Prévisualisation photo -->
+                  <div class="relative">
+                    <div 
+                      class="w-24 h-24 rounded-full bg-gray-200 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden"
+                      :class="{ 'border-primary-500': formData.photoPreview }"
+                    >
+                      <img 
+                        v-if="formData.photoPreview" 
+                        :src="formData.photoPreview" 
+                        alt="Photo de profil" 
+                        class="w-full h-full object-cover rounded-full"
+                      />
+                      <div v-else class="text-center">
+                        <svg class="w-8 h-8 text-gray-400 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span class="text-xs text-gray-500">Photo</span>
+                      </div>
+                    </div>
+                    
+                    <!-- Bouton de suppression -->
+                    <button 
+                      v-if="formData.photoPreview"
+                      @click="removePhoto"
+                      type="button"
+                      class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <!-- Boutons d'upload -->
+                  <div class="flex-1">
+                    <input
+                      ref="photoInput"
+                      type="file"
+                      accept="image/*"
+                      class="hidden"
+                      @change="handlePhotoUpload"
+                    />
+                    <button
+                      type="button"
+                      @click="photoInput?.click()"
+                      class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    >
+                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      {{ formData.photoPreview ? 'Changer la photo' : 'Ajouter une photo' }}
+                    </button>
+                    <p class="mt-2 text-xs text-gray-500">
+                      Format recommandé : JPG, PNG (max 5Mo)
+                    </p>
+                    
+                    <!-- Indicateur de compression -->
+                    <div v-if="formData.compressing" class="mt-2 flex items-center text-sm text-blue-600">
+                      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      Compression de l'image...
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label for="first_name" class="block text-sm font-medium text-gray-700">
@@ -378,10 +450,10 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
-import { db, type UserProfile } from '@/lib/firebase'
-import { doc, setDoc } from 'firebase/firestore'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { doc, setDoc } from 'firebase/firestore'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { auth, db, storage } from '@/lib/firebase'
 import AppLayout from '@/components/AppLayout.vue'
 
 const router = useRouter()
@@ -396,6 +468,7 @@ const modalImage = ref({ url: '', title: '' })
 const identityCardInput = ref<HTMLInputElement>()
 const ppaInput = ref<HTMLInputElement>()
 const drivingLicenseInput = ref<HTMLInputElement>()
+const photoInput = ref<HTMLInputElement>()
 
 // Données du formulaire
 const formData = ref({
@@ -414,7 +487,11 @@ const formData = ref({
   // Documents
   identity_card_url: '',
   ppa_url: '',
-  driving_license_url: ''
+  driving_license_url: '',
+  
+  // Photo de profil
+  photoPreview: '',
+  compressing: false
 })
 
 // Validation du formulaire
@@ -427,7 +504,8 @@ const isFormValid = computed(() => {
          formData.value.birth_date &&
          formData.value.postal_address &&
          formData.value.discord_username &&
-         formData.value.identity_card_url // Carte d'identité obligatoire
+         formData.value.identity_card_url && // Carte d'identité obligatoire
+         formData.value.photoPreview // Photo de profil obligatoire
 })
 
 // Fonction pour déclencher l'upload de fichiers
@@ -441,6 +519,9 @@ const triggerFileUpload = (inputType: string) => {
       break
     case 'driving_license':
       drivingLicenseInput.value?.click()
+      break
+    case 'photo':
+      photoInput.value?.click()
       break
   }
 }
@@ -612,30 +693,100 @@ const handleRegister = async () => {
     const user = userCredential.user
     console.log('Compte créé avec UID:', user.uid)
 
-    // 2. Créer le profil utilisateur avec toutes les informations RP
-    console.log('Création du profil utilisateur...')
-    const profileData: UserProfile = {
-      id: user.uid,
-      user_id: user.uid,
+    // 4. Upload des documents et photo de profil vers Firebase Storage
+    notificationStore.info('Upload des documents...', 'Téléchargement des fichiers en cours...')
+    
+    const uploadResults = {
+      profile_photo_url: '',
+      identity_card_url: '',
+      ppa_url: '',
+      driving_license_url: ''
+    }
+    
+    // Photo de profil (obligatoire)
+    if (formData.value.photoPreview) {
+      try {
+        const photoBlob = await fetch(formData.value.photoPreview).then(r => r.blob())
+        const photoRef = storageRef(storage, `profiles/${userCredential.user.uid}/profile_photo.jpg`)
+        await uploadBytes(photoRef, photoBlob)
+        uploadResults.profile_photo_url = await getDownloadURL(photoRef)
+        console.log('Photo de profil uploadée:', uploadResults.profile_photo_url)
+      } catch (error) {
+        console.error('Erreur upload photo profil:', error)
+      }
+    }
+    
+    // Carte d'identité (obligatoire)
+    if (formData.value.identity_card_url) {
+      try {
+        const idBlob = await fetch(formData.value.identity_card_url).then(r => r.blob())
+        const idRef = storageRef(storage, `profiles/${userCredential.user.uid}/identity_card.jpg`)
+        await uploadBytes(idRef, idBlob)
+        uploadResults.identity_card_url = await getDownloadURL(idRef)
+        console.log('Carte d\'identité uploadée:', uploadResults.identity_card_url)
+      } catch (error) {
+        console.error('Erreur upload carte ID:', error)
+      }
+    }
+    
+    // PPA (optionnel)
+    if (formData.value.ppa_url) {
+      try {
+        const ppaBlob = await fetch(formData.value.ppa_url).then(r => r.blob())
+        const ppaRef = storageRef(storage, `profiles/${userCredential.user.uid}/ppa.jpg`)
+        await uploadBytes(ppaRef, ppaBlob)
+        uploadResults.ppa_url = await getDownloadURL(ppaRef)
+        console.log('PPA uploadé:', uploadResults.ppa_url)
+      } catch (error) {
+        console.error('Erreur upload PPA:', error)
+      }
+    }
+    
+    // Permis de conduire (optionnel)
+    if (formData.value.driving_license_url) {
+      try {
+        const licenseBlob = await fetch(formData.value.driving_license_url).then(r => r.blob())
+        const licenseRef = storageRef(storage, `profiles/${userCredential.user.uid}/driving_license.jpg`)
+        await uploadBytes(licenseRef, licenseBlob)
+        uploadResults.driving_license_url = await getDownloadURL(licenseRef)
+        console.log('Permis de conduire uploadé:', uploadResults.driving_license_url)
+      } catch (error) {
+        console.error('Erreur upload permis:', error)
+      }
+    }
+    
+    // 5. Créer le profil utilisateur avec toutes les données
+    const profileData = {
+      // Informations d'authentification
+      uid: userCredential.user.uid,
+      email: formData.value.email,
+      
+      // Informations RP
       first_name: formData.value.first_name,
       last_name: formData.value.last_name,
       phone_number: formData.value.phone_number,
       birth_date: formData.value.birth_date,
       postal_address: formData.value.postal_address,
       discord_username: formData.value.discord_username,
-      identity_card_url: formData.value.identity_card_url,
-      ppa_url: formData.value.ppa_url,
-      driving_license_url: formData.value.driving_license_url,
-      other_documents: [],
+      
+      // Photo de profil et documents
+      profile_photo_url: uploadResults.profile_photo_url,
+      identity_card_url: uploadResults.identity_card_url,
+      ppa_url: uploadResults.ppa_url,
+      driving_license_url: uploadResults.driving_license_url,
+      
+      // Métadonnées
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      is_verified: false,
+      registration_source: 'self_registration'
     }
 
-    // 3. Sauvegarder le profil dans Firestore
+    // 6. Sauvegarder le profil dans Firestore
     await setDoc(doc(db, 'profiles', user.uid), profileData)
     console.log('Profil sauvegardé dans Firestore')
 
-    // 4. Créer l'entrée utilisateur pour les permissions
+    // 7. Créer l'entrée utilisateur pour les permissions
     await setDoc(doc(db, 'users', user.uid), {
       id: user.uid,
       email: formData.value.email,
@@ -646,10 +797,10 @@ const handleRegister = async () => {
     })
     console.log('Entrée utilisateur créée')
 
-    // 5. Connecter automatiquement l'utilisateur
+    // 8. Connecter automatiquement l'utilisateur
     await authStore.checkAuth()
 
-    // 6. Notification de succès et redirection
+    // 9. Notification de succès et redirection
     notificationStore.success(
       'Compte créé avec succès !',
       `Bienvenue ${formData.value.first_name} ${formData.value.last_name} ! Votre compte RP est prêt.`
@@ -683,5 +834,48 @@ const handleRegister = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// Gérer le chargement de la photo de profil
+const handlePhotoUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  
+  if (file) {
+    try {
+      // Vérifier la taille du fichier (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        notificationStore.warning(
+          'Fichier trop volumineux',
+          'Veuillez choisir un fichier de moins de 5MB.'
+        )
+        return
+      }
+
+      console.log(`Traitement de la photo...`)
+      
+      formData.value.compressing = true
+      
+      const compressedImageUrl = await compressImage(file)
+      
+      formData.value.photoPreview = compressedImageUrl
+      
+      console.log(`Photo traitée avec succès`)
+      
+    } catch (error) {
+      console.error('Erreur lors du traitement de la photo:', error)
+      notificationStore.error(
+        'Erreur de traitement',
+        'Erreur lors du traitement de la photo. Veuillez réessayer.'
+      )
+    } finally {
+      formData.value.compressing = false
+    }
+  }
+}
+
+// Supprimer la photo de profil
+const removePhoto = () => {
+  formData.value.photoPreview = ''
 }
 </script> 

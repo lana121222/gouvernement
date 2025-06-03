@@ -2,6 +2,7 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
+import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -15,6 +16,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
 export const auth = getAuth(app)
+export const storage = getStorage(app)
 
 // Types identiques - pas de changement !
 export interface Employee {
@@ -67,6 +69,8 @@ export interface UserProfile {
   birth_date?: string
   postal_address?: string
   discord_username?: string
+  // Photo de profil
+  profile_photo_url?: string
   // Documents (URLs des images/fichiers)
   driving_license_url?: string
   ppa_url?: string
