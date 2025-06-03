@@ -305,17 +305,65 @@ const handleUpdateUser = async (userData: Partial<User>) => {
 const deleteUser = async (user: ExtendedUser) => {
   try {
     const confirmed = await notificationStore.confirm(
-      'Supprimer l\'utilisateur',
-      `Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.display_name || user.email} ?`
+      'Supprimer complètement l\'utilisateur',
+      `⚠️ ATTENTION: Cette action va SUPPRIMER DÉFINITIVEMENT l'utilisateur ${user.display_name || user.email} !\n\n` +
+      `Cela inclut :\n` +
+      `• Le compte Firebase Authentication\n` +
+      `• Toutes les données Firestore\n` +
+      `• L'historique des transactions\n` +
+      `• Les sauvegardes créées\n\n` +
+      `L'utilisateur ne pourra plus se reconnecter avec ces identifiants et devra créer un nouveau compte.\n\n` +
+      `Êtes-vous absolument certain de vouloir continuer ?`
     )
     if (!confirmed) return
 
-    await userStore.deleteUser(user.id)
+    // Afficher un indicateur de chargement
+    notificationStore.info(
+      'Suppression en cours...',
+      `Suppression complète de l'utilisateur ${user.display_name || user.email} en cours. Veuillez patienter...`
+    )
+
+    const result = await userStore.deleteUser(user.id)
+    
     await refreshUsers()
-    notificationStore.success('Utilisateur supprimé', 'Utilisateur supprimé avec succès')
-  } catch (error) {
-    console.error('Erreur lors de la suppression:', error)
-    notificationStore.error('Erreur de suppression', 'Erreur lors de la suppression de l\'utilisateur')
+    
+    // Afficher un message de succès détaillé
+    notificationStore.success(
+      '✅ Utilisateur supprimé complètement',
+      `${user.display_name || user.email} a été supprimé avec succès. ` +
+      `Le compte Firebase Auth et toutes les données associées ont été supprimés. ` +
+      `L'utilisateur peut maintenant créer un nouveau compte avec la même adresse email.`
+    )
+    
+    console.log('🎉 Suppression complète réussie:', result)
+    
+  } catch (error: any) {
+    console.error('❌ Erreur lors de la suppression complète:', error)
+    
+    let errorTitle = 'Erreur de suppression'
+    let errorMessage = 'Erreur inconnue lors de la suppression de l\'utilisateur'
+    
+    // Gérer les différents types d'erreur
+    if (error.code === 'functions/permission-denied') {
+      errorTitle = 'Permissions insuffisantes'
+      errorMessage = 'Vous n\'avez pas les permissions administrateur nécessaires pour supprimer cet utilisateur.'
+    } else if (error.code === 'functions/unauthenticated') {
+      errorTitle = 'Authentification requise'
+      errorMessage = 'Vous devez être connecté en tant qu\'administrateur pour effectuer cette action.'
+    } else if (error.code === 'functions/invalid-argument') {
+      errorTitle = 'Utilisateur invalide'
+      errorMessage = 'L\'ID de l\'utilisateur sélectionné est invalide.'
+    } else if (error.code === 'functions/internal') {
+      errorTitle = 'Erreur serveur'
+      errorMessage = `Une erreur s'est produite côté serveur : ${error.message}`
+    } else if (error.code === 'functions/not-found') {
+      errorTitle = 'Utilisateur introuvable'
+      errorMessage = 'L\'utilisateur sélectionné n\'existe plus ou a déjà été supprimé.'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    notificationStore.error(errorTitle, errorMessage)
   }
 }
 
