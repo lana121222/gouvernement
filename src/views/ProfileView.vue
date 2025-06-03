@@ -318,7 +318,26 @@
                 <li>• Utilisez des adresses et numéros fictifs (ex: Los Santos, San Andreas)</li>
                 <li>• Les documents uploadés doivent être des créations RP, pas de vrais documents</li>
                 <li>• Votre Discord peut être réel pour les communications OOC</li>
+                <li>• <strong>Limite de taille :</strong> Les images sont automatiquement compressées (max 5MB avant compression)</li>
               </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message d'erreur permissions si nécessaire -->
+      <div v-if="showPermissionError" class="mt-4 bg-red-50 border border-red-200 rounded-md p-4">
+        <div class="flex">
+          <svg class="h-5 w-5 text-red-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L2.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">
+              Problème de permissions Firebase
+            </h3>
+            <div class="mt-2 text-sm text-red-700">
+              <p>Les règles Firestore doivent être mises à jour dans la console Firebase pour permettre l'accès aux profils.</p>
+              <p class="mt-1"><strong>Solution :</strong> Contactez l'administrateur pour mettre à jour les règles de sécurité.</p>
             </div>
           </div>
         </div>
@@ -336,6 +355,7 @@ import AppLayout from '@/components/AppLayout.vue'
 
 const authStore = useAuthStore()
 const loading = ref(false)
+const showPermissionError = ref(false)
 
 // Refs pour les inputs de fichiers
 const drivingLicenseInput = ref<HTMLInputElement>()
@@ -364,13 +384,23 @@ const loadProfile = async () => {
   
   loading.value = true
   try {
+    console.log('Chargement du profil pour:', authStore.user.id)
     const profileDoc = await getDoc(doc(db, 'profiles', authStore.user.id))
     if (profileDoc.exists()) {
       const profileData = profileDoc.data() as UserProfile
       profile.value = { ...profileData }
+      console.log('Profil chargé avec succès')
+    } else {
+      console.log('Aucun profil existant trouvé')
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors du chargement du profil:', error)
+    if (error.code === 'permission-denied') {
+      showPermissionError.value = true
+      alert('⚠️ Problème de permissions Firebase\n\nLes règles Firestore doivent être mises à jour dans la console Firebase.\nVeuillez contacter l\'administrateur.')
+    } else {
+      alert('Erreur lors du chargement du profil: ' + error.message)
+    }
   } finally {
     loading.value = false
   }
@@ -382,6 +412,8 @@ const saveProfile = async () => {
   
   loading.value = true
   try {
+    console.log('Sauvegarde du profil pour:', authStore.user.id)
+    
     const profileData = {
       ...profile.value,
       user_id: authStore.user.id,
@@ -401,10 +433,18 @@ const saveProfile = async () => {
       })
     }
 
-    alert('Profil sauvegardé avec succès !')
-  } catch (error) {
+    alert('✅ Profil sauvegardé avec succès !')
+    console.log('Profil sauvegardé avec succès')
+  } catch (error: any) {
     console.error('Erreur lors de la sauvegarde:', error)
-    alert('Erreur lors de la sauvegarde du profil')
+    if (error.code === 'permission-denied') {
+      showPermissionError.value = true
+      alert('⚠️ Problème de permissions Firebase\n\nLes règles Firestore doivent être mises à jour dans la console Firebase.\nVeuillez contacter l\'administrateur.')
+    } else if (error.message.includes('longer than')) {
+      alert('❌ Image trop volumineuse\n\nVeuillez choisir une image plus petite ou de meilleure qualité.')
+    } else {
+      alert('Erreur lors de la sauvegarde: ' + error.message)
+    }
   } finally {
     loading.value = false
   }
@@ -428,34 +468,99 @@ const triggerFileUpload = (inputType: string) => {
   }
 }
 
-// Gérer l'upload de fichiers (simulation)
-const handleFileUpload = (documentType: string, event: Event) => {
+// Fonction pour compresser une image
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    
+    img.onload = () => {
+      // Calculer les nouvelles dimensions (max 800px de largeur)
+      const maxWidth = 800
+      const maxHeight = 600
+      let { width, height } = img
+      
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width
+        width = maxWidth
+      }
+      
+      if (height > maxHeight) {
+        width = (width * maxHeight) / height
+        height = maxHeight
+      }
+      
+      // Redimensionner l'image
+      canvas.width = width
+      canvas.height = height
+      ctx?.drawImage(img, 0, 0, width, height)
+      
+      // Compresser en JPEG avec qualité 0.7
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const reader = new FileReader()
+            reader.onload = (e) => resolve(e.target?.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          } else {
+            reject(new Error('Erreur de compression'))
+          }
+        },
+        'image/jpeg',
+        0.7
+      )
+    }
+    
+    img.onerror = reject
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+// Gérer l'upload de fichiers avec compression
+const handleFileUpload = async (documentType: string, event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   
   if (file) {
-    // Pour la démo, on simule l'upload avec une URL locale
-    // En production, il faudrait uploader vers Firebase Storage
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const result = e.target?.result as string
+    try {
+      // Vérifier la taille du fichier (max 5MB avant compression)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Le fichier est trop volumineux. Veuillez choisir un fichier de moins de 5MB.')
+        return
+      }
+      
+      console.log(`Compression de l'image ${file.name}...`)
+      const compressedDataUrl = await compressImage(file)
+      
+      // Vérifier la taille après compression (base64)
+      const sizeInBytes = compressedDataUrl.length * 0.75 // Approximation taille base64
+      if (sizeInBytes > 1000000) { // 1MB limite Firestore
+        alert('L\'image est encore trop volumineuse après compression. Veuillez choisir une image plus petite.')
+        return
+      }
       
       switch (documentType) {
         case 'driving_license':
-          profile.value.driving_license_url = result
+          profile.value.driving_license_url = compressedDataUrl
           break
         case 'ppa':
-          profile.value.ppa_url = result
+          profile.value.ppa_url = compressedDataUrl
           break
         case 'identity_card':
-          profile.value.identity_card_url = result
+          profile.value.identity_card_url = compressedDataUrl
           break
         case 'passport':
-          profile.value.passport_url = result
+          profile.value.passport_url = compressedDataUrl
           break
       }
+      
+      console.log(`Image ${file.name} compressée avec succès`)
+    } catch (error) {
+      console.error('Erreur lors de la compression:', error)
+      alert('Erreur lors du traitement de l\'image. Veuillez réessayer.')
     }
-    reader.readAsDataURL(file)
   }
 }
 
