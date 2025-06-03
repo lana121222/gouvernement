@@ -66,11 +66,10 @@ export interface UserProfile {
   birth_date?: string
   postal_address?: string
   discord_username?: string
-  // Documents (URLs des images)
+  // Documents (URLs des images/fichiers)
   driving_license_url?: string
   ppa_url?: string
   identity_card_url?: string
-  passport_url?: string
   // Autres documents
   other_documents?: { name: string; url: string }[]
 } 

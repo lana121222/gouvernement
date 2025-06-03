@@ -110,7 +110,8 @@
                     <img 
                       :src="profile.driving_license_url" 
                       alt="Permis de conduire"
-                      class="w-full h-32 object-cover rounded-lg border"
+                      class="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                      @click="openImageModal(profile.driving_license_url, 'Permis de conduire')"
                     />
                     <button
                       type="button"
@@ -125,20 +126,20 @@
                   <input
                     ref="drivingLicenseInput"
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf"
                     class="hidden"
                     @change="handleFileUpload('driving_license', $event)"
                   />
                   <button
                     type="button"
                     @click="triggerFileUpload('driving_license')"
-                    class="w-full flex justify-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400"
+                    class="w-full flex justify-center px-4 py-2 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 text-sm"
                   >
                     <div class="text-center">
-                      <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="mx-auto h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                       </svg>
-                      <span class="text-sm text-gray-600">
+                      <span class="text-gray-600">
                         {{ profile.driving_license_url ? 'Changer' : 'Ajouter' }} le permis
                       </span>
                     </div>
@@ -156,7 +157,8 @@
                     <img 
                       :src="profile.ppa_url" 
                       alt="PPA"
-                      class="w-full h-32 object-cover rounded-lg border"
+                      class="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                      @click="openImageModal(profile.ppa_url, 'PPA (Port d\'Arme)')"
                     />
                     <button
                       type="button"
@@ -171,20 +173,20 @@
                   <input
                     ref="ppaInput"
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf"
                     class="hidden"
                     @change="handleFileUpload('ppa', $event)"
                   />
                   <button
                     type="button"
                     @click="triggerFileUpload('ppa')"
-                    class="w-full flex justify-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400"
+                    class="w-full flex justify-center px-4 py-2 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 text-sm"
                   >
                     <div class="text-center">
-                      <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="mx-auto h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                       </svg>
-                      <span class="text-sm text-gray-600">
+                      <span class="text-gray-600">
                         {{ profile.ppa_url ? 'Changer' : 'Ajouter' }} le PPA
                       </span>
                     </div>
@@ -202,7 +204,8 @@
                     <img 
                       :src="profile.identity_card_url" 
                       alt="Carte d'identité"
-                      class="w-full h-32 object-cover rounded-lg border"
+                      class="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                      @click="openImageModal(profile.identity_card_url, 'Carte d\'identité')"
                     />
                     <button
                       type="button"
@@ -217,67 +220,21 @@
                   <input
                     ref="identityCardInput"
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf"
                     class="hidden"
                     @change="handleFileUpload('identity_card', $event)"
                   />
                   <button
                     type="button"
                     @click="triggerFileUpload('identity_card')"
-                    class="w-full flex justify-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400"
+                    class="w-full flex justify-center px-4 py-2 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 text-sm"
                   >
                     <div class="text-center">
-                      <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="mx-auto h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                       </svg>
-                      <span class="text-sm text-gray-600">
+                      <span class="text-gray-600">
                         {{ profile.identity_card_url ? 'Changer' : 'Ajouter' }} la carte d'identité
-                      </span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Passeport -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Passeport
-                </label>
-                <div class="space-y-3">
-                  <div v-if="profile.passport_url" class="relative">
-                    <img 
-                      :src="profile.passport_url" 
-                      alt="Passeport"
-                      class="w-full h-32 object-cover rounded-lg border"
-                    />
-                    <button
-                      type="button"
-                      @click="removeDocument('passport')"
-                      class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                      </svg>
-                    </button>
-                  </div>
-                  <input
-                    ref="passportInput"
-                    type="file"
-                    accept="image/*"
-                    class="hidden"
-                    @change="handleFileUpload('passport', $event)"
-                  />
-                  <button
-                    type="button"
-                    @click="triggerFileUpload('passport')"
-                    class="w-full flex justify-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400"
-                  >
-                    <div class="text-center">
-                      <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                      </svg>
-                      <span class="text-sm text-gray-600">
-                        {{ profile.passport_url ? 'Changer' : 'Ajouter' }} le passeport
                       </span>
                     </div>
                   </button>
@@ -318,7 +275,9 @@
                 <li>• Utilisez des adresses et numéros fictifs (ex: Los Santos, San Andreas)</li>
                 <li>• Les documents uploadés doivent être des créations RP, pas de vrais documents</li>
                 <li>• Votre Discord peut être réel pour les communications OOC</li>
-                <li>• <strong>Limite de taille :</strong> Les images sont automatiquement compressées (max 5MB avant compression)</li>
+                <li>• <strong>Formats acceptés :</strong> Images (JPG, PNG) et fichiers PDF</li>
+                <li>• <strong>Limite de taille :</strong> Les images sont automatiquement compressées (max 5MB)</li>
+                <li>• <strong>Cliquez sur une image</strong> pour la voir en grand</li>
               </ul>
             </div>
           </div>
@@ -343,6 +302,31 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal d'affichage d'image -->
+    <div v-if="showImageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" @click="closeImageModal">
+      <div class="relative max-w-4xl max-h-[90vh] m-4">
+        <button
+          @click="closeImageModal"
+          class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75 z-10"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+        <img 
+          :src="modalImage.url" 
+          :alt="modalImage.title"
+          class="max-w-full max-h-full object-contain rounded-lg"
+          @click.stop
+        />
+        <div class="absolute bottom-4 left-4 right-4 text-center">
+          <p class="text-white bg-black bg-opacity-50 rounded px-3 py-1 inline-block">
+            {{ modalImage.title }}
+          </p>
+        </div>
+      </div>
+    </div>
   </AppLayout>
 </template>
 
@@ -356,12 +340,13 @@ import AppLayout from '@/components/AppLayout.vue'
 const authStore = useAuthStore()
 const loading = ref(false)
 const showPermissionError = ref(false)
+const showImageModal = ref(false)
+const modalImage = ref({ url: '', title: '' })
 
 // Refs pour les inputs de fichiers
 const drivingLicenseInput = ref<HTMLInputElement>()
 const ppaInput = ref<HTMLInputElement>()
 const identityCardInput = ref<HTMLInputElement>()
-const passportInput = ref<HTMLInputElement>()
 
 // État du profil
 const profile = ref<Partial<UserProfile>>({
@@ -374,7 +359,6 @@ const profile = ref<Partial<UserProfile>>({
   driving_license_url: '',
   ppa_url: '',
   identity_card_url: '',
-  passport_url: '',
   other_documents: []
 })
 
@@ -462,9 +446,6 @@ const triggerFileUpload = (inputType: string) => {
     case 'identity_card':
       identityCardInput.value?.click()
       break
-    case 'passport':
-      passportInput.value?.click()
-      break
   }
 }
 
@@ -525,43 +506,70 @@ const handleFileUpload = async (documentType: string, event: Event) => {
   
   if (file) {
     try {
-      // Vérifier la taille du fichier (max 5MB avant compression)
+      // Vérifier la taille du fichier (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('Le fichier est trop volumineux. Veuillez choisir un fichier de moins de 5MB.')
         return
       }
+
+      console.log(`Traitement du fichier ${file.name}...`)
       
-      console.log(`Compression de l'image ${file.name}...`)
-      const compressedDataUrl = await compressImage(file)
+      let fileDataUrl: string
       
-      // Vérifier la taille après compression (base64)
-      const sizeInBytes = compressedDataUrl.length * 0.75 // Approximation taille base64
-      if (sizeInBytes > 1000000) { // 1MB limite Firestore
-        alert('L\'image est encore trop volumineuse après compression. Veuillez choisir une image plus petite.')
+      // Si c'est un PDF, le lire directement
+      if (file.type === 'application/pdf') {
+        const reader = new FileReader()
+        fileDataUrl = await new Promise((resolve, reject) => {
+          reader.onload = (e) => resolve(e.target?.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(file)
+        })
+      } else if (file.type.startsWith('image/')) {
+        // Si c'est une image, la compresser
+        fileDataUrl = await compressImage(file)
+      } else {
+        alert('Format de fichier non supporté. Veuillez choisir une image (JPG, PNG) ou un fichier PDF.')
         return
       }
       
+      // Vérifier la taille après traitement (base64)
+      const sizeInBytes = fileDataUrl.length * 0.75 // Approximation taille base64
+      if (sizeInBytes > 1000000) { // 1MB limite Firestore
+        alert('Le fichier est encore trop volumineux après traitement. Veuillez choisir un fichier plus petit.')
+        return
+      }
+      
+      // Assigner à la bonne propriété
       switch (documentType) {
         case 'driving_license':
-          profile.value.driving_license_url = compressedDataUrl
+          profile.value.driving_license_url = fileDataUrl
           break
         case 'ppa':
-          profile.value.ppa_url = compressedDataUrl
+          profile.value.ppa_url = fileDataUrl
           break
         case 'identity_card':
-          profile.value.identity_card_url = compressedDataUrl
-          break
-        case 'passport':
-          profile.value.passport_url = compressedDataUrl
+          profile.value.identity_card_url = fileDataUrl
           break
       }
       
-      console.log(`Image ${file.name} compressée avec succès`)
+      console.log(`Fichier ${file.name} traité avec succès`)
     } catch (error) {
-      console.error('Erreur lors de la compression:', error)
-      alert('Erreur lors du traitement de l\'image. Veuillez réessayer.')
+      console.error('Erreur lors du traitement du fichier:', error)
+      alert('Erreur lors du traitement du fichier. Veuillez réessayer.')
     }
   }
+}
+
+// Ouvrir le modal d'image
+const openImageModal = (imageUrl: string, title: string) => {
+  modalImage.value = { url: imageUrl, title }
+  showImageModal.value = true
+}
+
+// Fermer le modal d'image
+const closeImageModal = () => {
+  showImageModal.value = false
+  modalImage.value = { url: '', title: '' }
 }
 
 // Supprimer un document
@@ -575,9 +583,6 @@ const removeDocument = (documentType: string) => {
       break
     case 'identity_card':
       profile.value.identity_card_url = ''
-      break
-    case 'passport':
-      profile.value.passport_url = ''
       break
   }
 }
