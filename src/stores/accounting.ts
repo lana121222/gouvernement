@@ -555,22 +555,49 @@ export const useAccountingStore = defineStore('accounting', () => {
     customDescription?: string
   ) {
     loading.value = true
+    console.log('[STORE] Début addServiceSale:', {
+      employeeId,
+      employeeName,
+      serviceItemId,
+      serviceName,
+      amount,
+      type,
+      customDescription
+    })
+    
     try {
-      const serviceTransaction = {
+      // Filtrer les valeurs undefined avant d'envoyer à Firebase
+      const serviceTransaction: any = {
         type: type,
         employee_id: employeeId,
         employee_name: employeeName,
-        service_item_id: serviceItemId,
         service_name: serviceName,
         amount: amount,
-        custom_description: customDescription,
         created_at: new Date().toISOString()
       }
       
+      // Ajouter conditionnellement les champs optionnels
+      if (serviceItemId) {
+        serviceTransaction.service_item_id = serviceItemId
+      }
+      if (customDescription) {
+        serviceTransaction.custom_description = customDescription
+      }
+      
+      console.log('[STORE] Données à envoyer à Firebase:', serviceTransaction)
+      
       const docRef = await addDoc(collection(db, 'serviceTransactions'), serviceTransaction)
-      serviceTransactions.value.unshift({ id: docRef.id, ...serviceTransaction })
+      console.log('[STORE] Transaction vente/prestation créée avec ID:', docRef.id)
+      
+      const newTransaction = { id: docRef.id, ...serviceTransaction }
+      serviceTransactions.value.unshift(newTransaction)
+      console.log('[STORE] Transaction ajoutée au store local, total transactions:', serviceTransactions.value.length)
+      console.log('[STORE] Nouvelles transactions vente/prestation:', 
+        serviceTransactions.value.filter(t => t.type === 'vente' || t.type === 'prestation').slice(0, 5)
+      )
       
       // Ajouter aussi comme transaction revenue
+      console.log('[STORE] Ajout de la transaction revenue...')
       await addTransaction({
         type: 'income',
         amount: amount,
@@ -578,9 +605,12 @@ export const useAccountingStore = defineStore('accounting', () => {
         category: type === 'vente' ? 'Ventes' : 'Prestations',
         employee_id: employeeId
       })
+      console.log('[STORE] Transaction revenue ajoutée avec succès')
       
     } catch (err: any) {
+      console.error('[STORE] Erreur dans addServiceSale:', err)
       error.value = err.message
+      throw err // Important: propager l'erreur
     } finally {
       loading.value = false
     }

@@ -308,11 +308,26 @@ const canSubmit = computed(() =>
   )
 )
 
-const recentSales = computed(() => 
-  accountingStore.serviceTransactions
-    .filter(t => t.type === 'vente' || t.type === 'prestation')
-    .slice(0, 20)
-)
+const recentSales = computed(() => {
+  const allTransactions = accountingStore.serviceTransactions
+  console.log('[SALES] Calcul recentSales, total transactions:', allTransactions.length)
+  
+  const salesAndPrestations = allTransactions.filter(t => t.type === 'vente' || t.type === 'prestation')
+  console.log('[SALES] Transactions vente/prestation trouvées:', salesAndPrestations.length)
+  console.log('[SALES] Détail des ventes/prestations:', salesAndPrestations.map(t => ({
+    id: t.id,
+    type: t.type,
+    employee_name: t.employee_name,
+    service_name: t.service_name,
+    amount: t.amount,
+    created_at: t.created_at
+  })))
+  
+  const recent = salesAndPrestations.slice(0, 20)
+  console.log('[SALES] Résultat final recentSales:', recent.length, 'éléments')
+  
+  return recent
+})
 
 // Fonctions
 const handleServiceChange = () => {
@@ -333,11 +348,32 @@ const resetForm = () => {
 const submitSale = async () => {
   if (!canSubmit.value) return
   
+  console.log('[SALES] Début submitSale')
+  console.log('[SALES] Données du formulaire:', {
+    selectedEmployeeId: selectedEmployeeId.value,
+    selectedEmployeeName: selectedEmployeeName.value,
+    selectedType: selectedType.value,
+    selectedServiceId: selectedServiceId.value,
+    serviceName: selectedServiceName.value,
+    amount: selectedAmount.value,
+    customDescription: customDescription.value
+  })
+  
   try {
     const serviceName = selectedServiceName.value
     const amount = selectedAmount.value
     const serviceItemId = selectedServiceId.value === 'custom' ? undefined : selectedServiceId.value
     const description = selectedServiceId.value === 'custom' ? customDescription.value : undefined
+    
+    console.log('[SALES] Appel addServiceSale avec:', {
+      employeeId: selectedEmployeeId.value,
+      employeeName: selectedEmployeeName.value,
+      serviceItemId,
+      serviceName,
+      amount,
+      type: selectedType.value,
+      description
+    })
     
     await accountingStore.addServiceSale(
       selectedEmployeeId.value,
@@ -349,6 +385,11 @@ const submitSale = async () => {
       description
     )
     
+    console.log('[SALES] Vente/Prestation enregistrée avec succès')
+    console.log('[SALES] Transactions dans le store après ajout:', 
+      accountingStore.serviceTransactions.filter(t => t.type === 'vente' || t.type === 'prestation').length
+    )
+    
     // Reset du formulaire
     selectedEmployeeId.value = ''
     selectedType.value = ''
@@ -356,9 +397,13 @@ const submitSale = async () => {
     
     alert('Vente/Prestation enregistrée avec succès !')
     
+    // Forcer le rafraîchissement de l'historique
+    console.log('[SALES] Rafraîchissement de l\'historique...')
+    await refreshHistory()
+    
   } catch (error) {
-    console.error('Erreur lors de l\'enregistrement:', error)
-    alert('Erreur lors de l\'enregistrement')
+    console.error('[SALES] Erreur lors de l\'enregistrement:', error)
+    alert('Erreur lors de l\'enregistrement: ' + (error as Error).message)
   }
 }
 
