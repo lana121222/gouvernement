@@ -85,7 +85,10 @@ export const useAccountingStore = defineStore('accounting', () => {
 
   async function updateEmployee(id: string, updates: Partial<Employee>) {
     loading.value = true
+    error.value = null
     try {
+      console.log('Mise à jour employé:', id, updates)
+      
       // Recalculer les gains totaux si nécessaire
       if (updates.hours_worked !== undefined || updates.hourly_rate !== undefined || updates.bonus_amount !== undefined) {
         const employee = employees.value.find(emp => emp.id === id)
@@ -102,14 +105,24 @@ export const useAccountingStore = defineStore('accounting', () => {
         updated_at: new Date().toISOString() 
       }
       
+      console.log('Données à mettre à jour:', updatedData)
+      
       await updateDoc(doc(db, 'employees', id), updatedData)
       
       const index = employees.value.findIndex(emp => emp.id === id)
       if (index !== -1) {
         employees.value[index] = { ...employees.value[index], ...updatedData }
+        console.log('Employé mis à jour localement:', employees.value[index])
+      } else {
+        console.warn('Employé non trouvé dans la liste locale:', id)
       }
+      
+      console.log('Mise à jour réussie!')
+      
     } catch (err: any) {
+      console.error('Erreur lors de la mise à jour:', err)
       error.value = err.message
+      throw err // Relancer l'erreur pour que les composants puissent la gérer
     } finally {
       loading.value = false
     }

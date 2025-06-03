@@ -128,13 +128,26 @@ const formatDate = (dateString: string) => {
 }
 
 const reactivateEmployee = async (employee: Employee) => {
-  if (confirm(`Êtes-vous sûr de vouloir réactiver ${employee.first_name} ${employee.last_name} ?`)) {
+  try {
+    const confirmed = confirm(`Êtes-vous sûr de vouloir réactiver ${employee.first_name} ${employee.last_name} ?`)
+    if (!confirmed) return
+
+    // Afficher un indicateur de chargement
+    console.log(`Réactivation de ${employee.first_name} ${employee.last_name}...`)
+    
     await accountingStore.updateEmployee(employee.id, {
       is_active: true,
       is_former: false,
       termination_date: undefined,
       termination_reason: undefined
     })
+
+    // Notification de succès
+    alert(`${employee.first_name} ${employee.last_name} a été réactivé(e) avec succès !`)
+    
+  } catch (error) {
+    console.error('Erreur lors de la réactivation:', error)
+    alert(`Erreur lors de la réactivation de ${employee.first_name} ${employee.last_name}. Veuillez réessayer.`)
   }
 }
 
