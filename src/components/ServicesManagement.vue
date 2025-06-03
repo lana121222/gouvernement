@@ -247,7 +247,7 @@ const todayServices = computed(() => {
   const today = new Date().toDateString()
   return accountingStore.serviceTransactions.filter(t => 
     new Date(t.created_at).toDateString() === today &&
-    (t.type === 'prise_service' || t.type === 'fin_service')
+    t.type === 'prise_service' // Seulement les prises de service
   )
 })
 
@@ -290,7 +290,12 @@ const refreshHistory = async () => {
 
 // Obtenir la durée actuelle en temps réel
 const getCurrentDuration = (employeeId: string): number => {
-  return accountingStore.getCurrentShiftDuration(employeeId)
+  // Force la réactivité avec currentTime
+  currentTime.value
+  
+  // Utiliser la fonction qui retourne les secondes pour un affichage temps réel
+  const totalSeconds = accountingStore.getCurrentShiftDurationInSeconds(employeeId)
+  return Math.floor(totalSeconds / 60) // Convertir en minutes pour formatDuration
 }
 
 // Obtenir l'heure de début de service

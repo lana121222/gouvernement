@@ -62,14 +62,27 @@
               ${{ formatCurrency(employee.hourly_rate) }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <input
-                v-model.number="employee.hours_worked"
-                @change="updateEmployeeHours(employee.id, employee.hours_worked)"
-                type="number"
-                min="0"
-                step="0.5"
-                class="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
-              />
+              <!-- Affichage automatique basé sur le temps de service -->
+              <div class="space-y-1">
+                <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="flex items-center space-x-2">
+                  <div class="text-lg font-semibold text-green-600">
+                    {{ formatServiceHours(employee.id) }}
+                  </div>
+                  <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                </div>
+                
+                <div v-else class="text-sm text-gray-500">
+                  Hors service
+                </div>
+                
+                <div v-if="accountingStore.isEmployeeOnDuty(employee.id)" class="text-xs text-green-500">
+                  Depuis {{ getServiceStartTime(employee.id) }}
+                </div>
+                
+                <div v-else-if="employee.hours_worked > 0" class="text-xs text-gray-400">
+                  Heures manuelles: {{ employee.hours_worked }}h
+                </div>
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <input
@@ -172,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
 import type { Employee } from '@/lib/firebase'
 import EmployeeModal from './EmployeeModal.vue'
@@ -196,9 +209,38 @@ const formatCurrency = (amount: number) => {
   }).format(amount)
 }
 
-const updateEmployeeHours = async (id: string, hours: number) => {
-  await accountingStore.updateEmployee(id, { hours_worked: hours })
+// Obtenir l'heure de début du service
+const getServiceStartTime = (employeeId: string) => {
+  const startTime = accountingStore.activeShifts.get(employeeId)
+  if (!startTime) return 'N/A'
+  
+  return startTime.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
+
+// Formatter les heures de service (temps réel)
+const formatServiceHours = (employeeId: string) => {
+  if (!accountingStore.isEmployeeOnDuty(employeeId)) {
+    return '0h 0min'
+  }
+  
+  const totalSeconds = accountingStore.getCurrentShiftDurationInSeconds(employeeId)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  
+  // Affichage heures et minutes uniquement
+  if (hours > 0) {
+    return `${hours}h ${minutes}min`
+  } else {
+    return `${minutes}min`
+  }
+}
+
+// Timer pour mise à jour temps réel
+const currentTime = ref(new Date())
+let timeInterval: number | null = null
 
 const updateEmployeeBonus = async (id: string, bonus: number) => {
   await accountingStore.updateEmployee(id, { bonus_amount: bonus })
@@ -260,4 +302,22 @@ const handleDelete = async () => {
     selectedEmployee.value = null
   }
 }
+
+// Démarrer le timer temps réel
+onMounted(async () => {
+  // Initialiser le système de services
+  await accountingStore.initializeServiceStore()
+  
+  // Démarrer le timer de mise à jour
+  timeInterval = window.setInterval(() => {
+    currentTime.value = new Date()
+  }, 1000) // Mise à jour chaque seconde
+})
+
+// Nettoyer le timer
+onUnmounted(() => {
+  if (timeInterval) {
+    clearInterval(timeInterval)
+  }
+})
 </script> 
