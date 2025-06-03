@@ -1,64 +1,133 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 👤 USERS COLLECTION
+    // 🔐 FONCTION HELPER: Vérifier si l'utilisateur est authentifié
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // 🔐 FONCTION HELPER: Obtenir les données utilisateur
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // 🔐 FONCTION HELPER: Vérifier le rôle admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserData().role == 'admin';
+    }
+    
+    // 🔐 FONCTION HELPER: Vérifier le rôle manager ou admin
+    function isManagerOrAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserData().role in ['admin', 'manager'];
+    }
+    
+    // 🔐 FONCTION HELPER: Vérifier les permissions accounting
+    function hasAccountingPermission() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             (getUserData().role in ['admin', 'manager'] ||
+              'accounting' in getUserData().get('permissions', []));
+    }
+    
+    // 👤 USERS COLLECTION - Gestion des utilisateurs
     match /users/{userId} {
-      // Chaque utilisateur peut accéder à son propre document
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Chaque utilisateur peut lire son propre document
+      allow read: if isAuthenticated() && request.auth.uid == userId;
       
-      // Admins peuvent accéder à tous les documents users
-      allow read, write: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Seuls les admins peuvent modifier les utilisateurs
+      allow write: if isAdmin();
+      
+      // Les managers peuvent lire tous les utilisateurs (pour assignations)
+      allow read: if isManagerOrAdmin();
     }
     
-    // 📝 PROFILES COLLECTION - Règles simplifiées temporairement
+    // 📝 PROFILES COLLECTION - Profils utilisateurs étendus
     match /profiles/{profileId} {
-      // TEMPORAIRE: Tous les utilisateurs authentifiés peuvent accéder aux profils
-      // En attendant que les règles soient mises à jour dans la console Firebase
-      allow read, write: if request.auth != null;
+      // Lecture: propriétaire du profil ou admin/manager
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == profileId || isManagerOrAdmin());
+      
+      // Écriture: propriétaire du profil ou admin
+      allow write: if isAuthenticated() && 
+                      (request.auth.uid == profileId || isAdmin());
     }
     
-    // 💼 EMPLOYEES COLLECTION
+    // 💼 EMPLOYEES COLLECTION - Gestion des employés
     match /employees/{employeeId} {
-      allow read, write: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'];
+      // Lecture: tous les utilisateurs authentifiés (pour voir la liste)
+      allow read: if isAuthenticated();
+      
+      // Écriture: seulement admin et manager
+      allow write: if isManagerOrAdmin();
     }
     
-    // 💰 TRANSACTIONS COLLECTION
+    // 💰 TRANSACTIONS COLLECTION - Transactions financières
     match /transactions/{transactionId} {
-      allow read, write: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'] ||
-         'accounting' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions);
+      // Lecture et écriture: permissions accounting requises
+      allow read, write: if hasAccountingPermission();
     }
     
-    // 🛠️ SERVICE ITEMS COLLECTION (prix et services)
+    // 🛠️ SERVICE ITEMS COLLECTION - Catalogue des services et prix
     match /serviceItems/{serviceItemId} {
-      allow read, write: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'] ||
-         'accounting' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions);
+      // Lecture: tous les utilisateurs authentifiés (pour voir les prix)
+      allow read: if isAuthenticated();
+      
+      // Écriture: permissions accounting requises
+      allow write: if hasAccountingPermission();
     }
     
-    // 📊 SERVICE TRANSACTIONS COLLECTION (historique prise/fin service, ventes)
+    // 📊 SERVICE TRANSACTIONS COLLECTION - Historique des services
     match /serviceTransactions/{serviceTransactionId} {
-      allow read, write: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'] ||
-         'accounting' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions);
+      // Lecture: tous les utilisateurs authentifiés (pour voir l'historique)
+      allow read: if isAuthenticated();
+      
+      // Écriture: permissions accounting requises
+      allow write: if hasAccountingPermission();
     }
     
-    // 🗄️ ACCOUNTING BACKUPS COLLECTION
+    // 🗄️ ACCOUNTING BACKUPS COLLECTION - Sauvegardes comptabilité
     match /accounting_backups/{backupId} {
-      allow read, write: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Seuls les admins peuvent gérer les sauvegardes
+      allow read, write: if isAdmin();
     }
     
-    // 🔒 Tout le reste interdit par défaut
+    // 📋 REPORTS COLLECTION - Rapports et statistiques
+    match /reports/{reportId} {
+      // Lecture: permissions accounting
+      allow read: if hasAccountingPermission();
+      
+      // Écriture: admin seulement
+      allow write: if isAdmin();
+    }
+    
+    // 🔧 SETTINGS COLLECTION - Configuration de l'application
+    match /settings/{settingId} {
+      // Lecture: tous les utilisateurs authentifiés
+      allow read: if isAuthenticated();
+      
+      // Écriture: admin seulement
+      allow write: if isAdmin();
+    }
+    
+    // 📝 LOGS COLLECTION - Logs d'activité
+    match /logs/{logId} {
+      // Lecture: admin seulement
+      allow read: if isAdmin();
+      
+      // Écriture: tous les utilisateurs authentifiés (pour créer des logs)
+      allow create: if isAuthenticated();
+      
+      // Pas de modification ou suppression des logs
+      allow update, delete: if false;
+    }
+    
+    // 🔒 RÈGLE PAR DÉFAUT: Tout le reste est interdit
     match /{document=**} {
       allow read, write: if false;
     }

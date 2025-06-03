@@ -386,7 +386,7 @@ const submitForm = async () => {
     closeModal()
     console.log('[PRICING] ========== FIN SUBMIT FORM (SUCCES) ==========')
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('[PRICING] ========== ERREUR SUBMIT FORM ==========')
     console.error('[PRICING] Erreur lors de l\'enregistrement:', error)
     console.error('[PRICING] Type d\'erreur:', error.constructor.name)
