@@ -64,7 +64,6 @@
               required
               class="input-field mt-1"
             >
-              <option value="">Sélectionner un grade</option>
               <option value="debutant">🌱 Débutant</option>
               <option value="junior">📈 Junior</option>
               <option value="senior">⭐ Senior</option>
@@ -165,7 +164,7 @@ const form = ref({
   last_name: '',
   email: '',
   position: '',
-  grade: '',
+  grade: 'debutant' as 'debutant' | 'junior' | 'senior' | 'expert' | 'manager' | 'directeur',
   hourly_rate: 0,
   hours_worked: 0,
   bonus_amount: 0,

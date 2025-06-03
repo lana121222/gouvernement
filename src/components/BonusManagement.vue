@@ -208,7 +208,6 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Grade</label>
               <select v-model="formData.grade" required class="input-field" :disabled="showEditModal">
-                <option value="">Sélectionner un grade</option>
                 <option value="debutant">🌱 Débutant</option>
                 <option value="junior">📈 Junior</option>
                 <option value="senior">⭐ Senior</option>
@@ -305,7 +304,6 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Nouveau grade</label>
               <select v-model="newGrade" required class="input-field">
-                <option value="">Sélectionner un grade</option>
                 <option value="debutant">🌱 Débutant</option>
                 <option value="junior">📈 Junior</option>
                 <option value="senior">⭐ Senior</option>
@@ -361,7 +359,7 @@ const showGradeModal = ref(false)
 
 // Données du formulaire
 const formData = ref<Partial<BonusConfig>>({
-  grade: '',
+  grade: 'debutant',
   vente_percentage: 0,
   prestation_percentage: 0,
   min_amount_threshold: 0,
@@ -504,7 +502,7 @@ const closeModals = () => {
   showAddModal.value = false
   showEditModal.value = false
   formData.value = {
-    grade: '',
+    grade: 'debutant',
     vente_percentage: 0,
     prestation_percentage: 0,
     min_amount_threshold: 0,
