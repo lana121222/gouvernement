@@ -125,17 +125,12 @@
                   </div>
                 </div>
                 
-                <!-- Prime manuelle modifiable -->
+                <!-- Prime manuelle en lecture seule -->
                 <div class="space-y-1">
-                  <label class="text-xs font-medium text-blue-600">➕ Prime manuelle:</label>
-                  <input
-                    v-model.number="employee.bonus_amount"
-                    @change="updateEmployeeBonus(employee.id, employee.bonus_amount)"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    class="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
-                  />
+                  <div class="text-xs font-medium text-blue-600">➕ Prime manuelle:</div>
+                  <div class="text-sm font-medium text-blue-800">
+                    ${{ formatCurrency(employee.bonus_amount) }}
+                  </div>
                 </div>
                 
                 <!-- Total des primes -->
@@ -435,10 +430,6 @@ const totalPayroll = computed(() =>
 )
 
 // === GESTIONNAIRES D'ÉVÉNEMENTS ===
-
-const updateEmployeeBonus = async (id: string, bonus: number) => {
-  await accountingStore.updateEmployee(id, { bonus_amount: bonus })
-}
 
 const showPayModal = (employee: Employee) => {
   selectedEmployee.value = employee
