@@ -238,6 +238,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de prévisualisation du PDF -->
+    <div v-if="showPdfPreview" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-4 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">📊 Aperçu du Rapport de Sauvegarde</h3>
+            <button
+              @click="closePdfPreview"
+              class="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="border border-gray-200 rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
+            <div v-html="currentPreviewBackup ? generatePdfContent(currentPreviewBackup) : 'Chargement...'"></div>
+          </div>
+          <div class="mt-4 text-center">
+            <button
+              @click="closePdfPreview"
+              class="btn-secondary"
+            >
+              Fermer l'aperçu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -245,7 +275,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
 import { useNotificationStore } from '@/stores/notifications'
-import html2pdf from 'html2pdf.js'
 
 const accountingStore = useAccountingStore()
 const notificationStore = useNotificationStore()
@@ -253,6 +282,8 @@ const notificationStore = useNotificationStore()
 // État local
 const showCreateModal = ref(false)
 const newBackupDescription = ref('')
+const showPdfPreview = ref(false)
+const currentPreviewBackup = ref<any>(null)
 
 // Computed
 const backups = computed(() => accountingStore.backups)
@@ -375,73 +406,17 @@ const restoreBackup = async (backup: any) => {
   }
 }
 
-const exportBackup = async (backup: any) => {
-  try {
-    notificationStore.info('Génération PDF', 'Préparation du rapport PDF...')
-    
-    // Créer le contenu HTML directement
-    const htmlContent = generatePdfContent(backup)
-    
-    // Créer un élément temporaire visible
-    const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = htmlContent
-    tempDiv.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 800px;
-      background: white;
-      padding: 40px;
-      font-family: Arial, sans-serif;
-      z-index: 10000;
-      visibility: visible;
-      opacity: 1;
-    `
-    
-    // Ajouter au body
-    document.body.appendChild(tempDiv)
-    
-    // Attendre le rendu
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    const options = {
-      margin: [10, 10, 10, 10] as [number, number, number, number],
-      filename: `sauvegarde_${backup.id}_${new Date().toISOString().split('T')[0]}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { 
-        scale: 1,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: true
-      },
-      jsPDF: { 
-        unit: 'mm', 
-        format: 'a4', 
-        orientation: 'portrait'
-      }
-    }
-    
-    // Générer le PDF
-    await html2pdf().set(options).from(tempDiv).save()
-    
-    // Nettoyer
-    document.body.removeChild(tempDiv)
-    
-    notificationStore.success(
-      'Export PDF réussi',
-      'Le rapport de sauvegarde a été téléchargé en PDF !'
-    )
-  } catch (error) {
-    console.error('Erreur lors de l\'export PDF:', error)
-    notificationStore.error(
-      'Erreur d\'export PDF',
-      'Impossible de générer le rapport PDF'
-    )
-  }
+const exportBackup = (backup: any) => {
+  currentPreviewBackup.value = backup
+  showPdfPreview.value = true
 }
 
-// Nouvelle fonction pour générer le contenu HTML
+const closePdfPreview = () => {
+  showPdfPreview.value = false
+  currentPreviewBackup.value = null
+}
+
+// Fonction pour générer le contenu HTML de l'aperçu
 const generatePdfContent = (backup: any) => {
   const currentDate = new Date().toLocaleDateString('fr-FR', { 
     weekday: 'long',
