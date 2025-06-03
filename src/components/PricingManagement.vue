@@ -315,20 +315,45 @@ const submitForm = async () => {
   console.log('[PRICING] authStore.canAccessAccounting:', authStore.canAccessAccounting)
   
   // Vérifier Firebase Auth directement
-  const { auth } = await import('@/lib/firebase')
+  const { auth, db } = await import('@/lib/firebase')
+  const { doc, getDoc } = await import('firebase/firestore')
   console.log('[PRICING] Firebase Auth currentUser:', auth.currentUser)
   console.log('[PRICING] Firebase Auth currentUser uid:', auth.currentUser?.uid)
   
-  if (!authStore.isAuthenticated) {
-    console.log('[PRICING] ERREUR: Utilisateur non authentifié!')
-    alert('Vous devez être connecté pour ajouter un service')
-    return
-  }
-  
-  if (!authStore.canAccessAccounting) {
-    console.log('[PRICING] ERREUR: Permissions insuffisantes!')
-    alert('Vous n\'avez pas les permissions nécessaires pour ajouter un service')
-    return
+  // NOUVEAU: Vérifier le document utilisateur dans Firestore
+  if (auth.currentUser) {
+    console.log('[PRICING] ===== VERIFICATION DOCUMENT UTILISATEUR =====')
+    try {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid)
+      const userDoc = await getDoc(userDocRef)
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        console.log('[PRICING] ✅ Document utilisateur trouvé:', userData)
+        console.log('[PRICING] Rôle utilisateur:', userData.role)
+        console.log('[PRICING] Permissions utilisateur:', userData.permissions)
+        
+        if (!userData.role && !userData.permissions) {
+          console.log('[PRICING] ❌ PROBLÈME: L\'utilisateur n\'a ni rôle ni permissions!')
+          alert('ERREUR: Votre compte n\'a pas les permissions nécessaires. Contactez un administrateur.')
+          return
+        }
+      } else {
+        console.log('[PRICING] ❌ PROBLÈME CRITIQUE: Document utilisateur inexistant dans Firestore!')
+        console.log('[PRICING] UID recherché:', auth.currentUser.uid)
+        alert(`ERREUR CRITIQUE: Votre compte (${auth.currentUser.email}) n'existe pas dans la base de données. 
+
+Créez un document dans Firestore:
+Collection: users
+Document ID: ${auth.currentUser.uid}
+Contenu: { "role": "admin", "permissions": ["accounting"], "email": "${auth.currentUser.email}" }`)
+        return
+      }
+    } catch (error) {
+      console.error('[PRICING] Erreur lors de la vérification du document utilisateur:', error)
+      alert('Erreur lors de la vérification des permissions')
+      return
+    }
   }
   
   try {

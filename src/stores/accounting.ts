@@ -314,24 +314,41 @@ export const useAccountingStore = defineStore('accounting', () => {
   // Charger les services/prestations
   async function fetchServiceItems() {
     loading.value = true
+    console.log('[STORE] ========== DEBUT fetchServiceItems ==========')
+    
     try {
+      console.log('[STORE] Requête Firestore vers collection serviceItems...')
       const q = query(collection(db, 'serviceItems'), orderBy('category'), orderBy('name'))
       const querySnapshot = await getDocs(q)
+      
+      console.log('[STORE] ✅ Requête réussie! Documents trouvés:', querySnapshot.docs.length)
       
       serviceItems.value = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as ServiceItem[]
+      
+      console.log('[STORE] Services chargés:', serviceItems.value.length)
+      console.log('[STORE] Détail des services:', serviceItems.value.map(s => ({ id: s.id, name: s.name, category: s.category })))
+      
     } catch (err: any) {
+      console.error('[STORE] ❌ ERREUR dans fetchServiceItems:', err)
+      console.error('[STORE] Code d\'erreur:', err.code)
+      console.error('[STORE] Message d\'erreur:', err.message)
       error.value = err.message
     } finally {
       loading.value = false
+      console.log('[STORE] ========== FIN fetchServiceItems ==========')
     }
   }
 
   // Ajouter un service/prestation
   async function addServiceItem(itemData: Omit<ServiceItem, 'id' | 'created_at' | 'updated_at'>) {
     loading.value = true
+    console.log('[STORE] ========== DEBUT addServiceItem ==========')
+    console.log('[STORE] Données reçues:', itemData)
+    console.log('[STORE] Services actuels avant ajout:', serviceItems.value.length)
+    
     try {
       const newItem = {
         ...itemData,
@@ -339,21 +356,40 @@ export const useAccountingStore = defineStore('accounting', () => {
         updated_at: new Date().toISOString()
       }
       
+      console.log('[STORE] Données à ajouter à Firebase:', newItem)
+      console.log('[STORE] Tentative d\'ajout dans collection serviceItems...')
+      
       const docRef = await addDoc(collection(db, 'serviceItems'), newItem)
+      console.log('[STORE] ✅ Document ajouté avec succès! ID:', docRef.id)
+      
       const itemWithId = { id: docRef.id, ...newItem }
+      console.log('[STORE] Item avec ID généré:', itemWithId)
+      
+      console.log('[STORE] Ajout au tableau local...')
       serviceItems.value.push(itemWithId)
+      console.log('[STORE] Services après ajout local:', serviceItems.value.length)
       
       // Trier après ajout
+      console.log('[STORE] Tri des services...')
       serviceItems.value.sort((a, b) => {
         if (a.category !== b.category) {
           return a.category.localeCompare(b.category)
         }
         return a.name.localeCompare(b.name)
       })
+      
+      console.log('[STORE] ✅ Service ajouté et trié avec succès')
+      console.log('[STORE] Services finaux:', serviceItems.value.map(s => ({ id: s.id, name: s.name, category: s.category })))
+      
     } catch (err: any) {
+      console.error('[STORE] ❌ ERREUR dans addServiceItem:', err)
+      console.error('[STORE] Code d\'erreur:', err.code)
+      console.error('[STORE] Message d\'erreur:', err.message)
       error.value = err.message
+      throw err // Re-lancer l'erreur pour que le composant la détecte
     } finally {
       loading.value = false
+      console.log('[STORE] ========== FIN addServiceItem ==========')
     }
   }
 
@@ -563,15 +599,18 @@ export const useAccountingStore = defineStore('accounting', () => {
 
   // Services par catégorie
   const servicesByCategory = computed(() => {
+    console.log('[STORE] Calcul servicesByCategory, services disponibles:', serviceItems.value.length)
     const grouped: Record<string, ServiceItem[]> = {}
     
     serviceItems.value.forEach(item => {
+      console.log('[STORE] Traitement service:', item.name, 'catégorie:', item.category)
       if (!grouped[item.category]) {
         grouped[item.category] = []
       }
       grouped[item.category].push(item)
     })
     
+    console.log('[STORE] Résultat servicesByCategory:', Object.keys(grouped).map(cat => `${cat}: ${grouped[cat].length} items`))
     return grouped
   })
 
