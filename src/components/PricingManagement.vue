@@ -228,7 +228,7 @@ const editingService = ref<ServiceItem | null>(null)
 // Données du formulaire
 const formData = ref({
   name: '',
-  category: '' as 'vente' | 'prestation' | '',
+  category: '' as '' | 'vente' | 'prestation',
   price: 0,
   description: ''
 })
