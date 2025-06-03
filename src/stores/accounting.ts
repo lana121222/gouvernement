@@ -475,7 +475,7 @@ export const useAccountingStore = defineStore('accounting', () => {
   async function addServiceSale(
     employeeId: string, 
     employeeName: string, 
-    serviceItemId: string | null, 
+    serviceItemId: string | undefined, 
     serviceName: string, 
     amount: number, 
     type: 'vente' | 'prestation',

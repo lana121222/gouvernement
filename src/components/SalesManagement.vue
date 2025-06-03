@@ -318,7 +318,7 @@ const submitSale = async () => {
   try {
     const serviceName = selectedServiceName.value
     const amount = selectedAmount.value
-    const serviceItemId = selectedServiceId.value === 'custom' ? null : selectedServiceId.value
+    const serviceItemId = selectedServiceId.value === 'custom' ? undefined : selectedServiceId.value
     const description = selectedServiceId.value === 'custom' ? customDescription.value : undefined
     
     await accountingStore.addServiceSale(

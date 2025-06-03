@@ -78,7 +78,7 @@ export interface ServiceItem {
   id: string
   name: string
   price: number
-  category: 'vente' | 'prestation' | 'service'
+  category: 'vente' | 'prestation'
   description?: string
   created_at: string
   updated_at: string
