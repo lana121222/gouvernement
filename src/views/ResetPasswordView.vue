@@ -197,10 +197,7 @@ const handleResetPassword = async () => {
   try {
     console.log('Envoi de l\'email de réinitialisation à:', form.value.email)
     
-    await sendPasswordResetEmail(auth, form.value.email.trim(), {
-      url: window.location.origin + '/login', // URL de retour après réinitialisation
-      handleCodeInApp: false
-    })
+    await sendPasswordResetEmail(auth, form.value.email.trim())
 
     console.log('Email de réinitialisation envoyé avec succès')
     
