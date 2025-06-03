@@ -134,9 +134,10 @@
           <form 
             @submit.prevent="submitForm" 
             class="space-y-4"
-            data-dashlane-rid=""
-            data-form-type=""
+            data-dashlane-rid="false"
+            data-form-type="other"
             autocomplete="off"
+            novalidate
           >
             <div>
               <label for="serviceName" class="block text-sm font-medium text-gray-700 mb-1">
@@ -147,10 +148,12 @@
                 v-model="formData.name"
                 type="text"
                 required
+                maxlength="100"
                 placeholder="Ex: Réparation moteur"
                 class="input-field"
                 autocomplete="off"
-                data-dashlane-rid=""
+                data-dashlane-rid="false"
+                data-form-type="other"
               />
             </div>
             
@@ -164,7 +167,8 @@
                 required
                 class="input-field"
                 autocomplete="off"
-                data-dashlane-rid=""
+                data-dashlane-rid="false"
+                data-form-type="other"
               >
                 <option value="">Sélectionner une catégorie</option>
                 <option value="vente">💰 Vente</option>
@@ -180,13 +184,15 @@
                 id="servicePrice"
                 v-model.number="formData.price"
                 type="number"
-                min="0"
+                min="0.01"
+                max="99999.99"
                 step="0.01"
                 required
                 placeholder="0.00"
                 class="input-field"
                 autocomplete="off"
-                data-dashlane-rid=""
+                data-dashlane-rid="false"
+                data-form-type="other"
               />
             </div>
             
@@ -198,10 +204,12 @@
                 id="serviceDescription"
                 v-model="formData.description"
                 rows="3"
+                maxlength="500"
                 placeholder="Description du service..."
                 class="input-field"
                 autocomplete="off"
-                data-dashlane-rid=""
+                data-dashlane-rid="false"
+                data-form-type="other"
               ></textarea>
             </div>
             
@@ -210,12 +218,13 @@
                 type="button"
                 @click="closeModal"
                 class="btn-secondary"
+                :disabled="accountingStore.loading"
               >
                 Annuler
               </button>
               <button
                 type="submit"
-                :disabled="accountingStore.loading"
+                :disabled="accountingStore.loading || !formData.name.trim() || !formData.category || formData.price <= 0"
                 class="btn-primary disabled:opacity-50"
               >
                 {{ accountingStore.loading ? 'Enregistrement...' : (editingService ? 'Modifier' : 'Ajouter') }}
@@ -280,35 +289,50 @@ const deleteService = async (service: ServiceItem) => {
 
 const submitForm = async () => {
   try {
+    // Validation des données
+    if (!formData.value.name.trim()) {
+      alert('Le nom du service est requis')
+      return
+    }
+    
+    if (!formData.value.category) {
+      alert('La catégorie est requise')
+      return
+    }
+    
+    if (formData.value.price <= 0) {
+      alert('Le prix doit être supérieur à 0')
+      return
+    }
+
+    // Préparer les données
+    const serviceData = {
+      name: formData.value.name.trim(),
+      category: formData.value.category as 'vente' | 'prestation',
+      price: Number(formData.value.price),
+      description: formData.value.description.trim() || undefined
+    }
+
     if (editingService.value) {
       // Modification
-      await accountingStore.updateServiceItem(editingService.value.id, {
-        name: formData.value.name,
-        category: formData.value.category as 'vente' | 'prestation',
-        price: formData.value.price,
-        description: formData.value.description || undefined
-      })
+      await accountingStore.updateServiceItem(editingService.value.id, serviceData)
     } else {
       // Ajout
-      await accountingStore.addServiceItem({
-        name: formData.value.name,
-        category: formData.value.category as 'vente' | 'prestation',
-        price: formData.value.price,
-        description: formData.value.description || undefined
-      })
+      await accountingStore.addServiceItem(serviceData)
     }
     
     closeModal()
     
   } catch (error) {
     console.error('Erreur lors de l\'enregistrement:', error)
-    alert('Erreur lors de l\'enregistrement')
+    alert('Erreur lors de l\'enregistrement: ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
   }
 }
 
 const closeModal = () => {
   showAddModal.value = false
   editingService.value = null
+  // Reset avec des valeurs par défaut sûres
   formData.value = {
     name: '',
     category: '',
