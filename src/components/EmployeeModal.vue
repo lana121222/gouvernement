@@ -57,6 +57,24 @@
           </div>
 
           <div>
+            <label for="grade" class="block text-sm font-medium text-gray-700">Grade</label>
+            <select
+              id="grade"
+              v-model="form.grade"
+              required
+              class="input-field mt-1"
+            >
+              <option value="">Sélectionner un grade</option>
+              <option value="debutant">🌱 Débutant</option>
+              <option value="junior">📈 Junior</option>
+              <option value="senior">⭐ Senior</option>
+              <option value="expert">🎓 Expert</option>
+              <option value="manager">👔 Manager</option>
+              <option value="directeur">👑 Directeur</option>
+            </select>
+          </div>
+
+          <div>
             <label for="hourly_rate" class="block text-sm font-medium text-gray-700">Taux horaire ($)</label>
             <input
               id="hourly_rate"
@@ -147,6 +165,7 @@ const form = ref({
   last_name: '',
   email: '',
   position: '',
+  grade: '',
   hourly_rate: 0,
   hours_worked: 0,
   bonus_amount: 0,
@@ -187,6 +206,7 @@ onMounted(() => {
       last_name: props.employee.last_name,
       email: props.employee.email,
       position: props.employee.position,
+      grade: props.employee.grade,
       hourly_rate: props.employee.hourly_rate,
       hours_worked: props.employee.hours_worked,
       bonus_amount: props.employee.bonus_amount,

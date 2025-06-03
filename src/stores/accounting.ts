@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { db, type Employee, type Transaction, type ServiceItem, type ServiceTransaction } from '@/lib/firebase'
+import { db, type Employee, type Transaction, type ServiceItem, type ServiceTransaction, type BonusConfig } from '@/lib/firebase'
 import { 
   collection, 
   doc, 
@@ -19,6 +19,7 @@ export const useAccountingStore = defineStore('accounting', () => {
   const transactions = ref<Transaction[]>([])
   const serviceItems = ref<ServiceItem[]>([])
   const serviceTransactions = ref<ServiceTransaction[]>([])
+  const bonusConfigs = ref<BonusConfig[]>([])
   const activeShifts = ref<Map<string, Date>>(new Map()) // employee_id -> start_time
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -829,11 +830,235 @@ export const useAccountingStore = defineStore('accounting', () => {
     setupAutoEndShifts()
   }
 
+  // === GESTION DES PRIMES ET GRADES ===
+  
+  // Charger les configurations de primes
+  async function fetchBonusConfigs() {
+    loading.value = true
+    try {
+      const q = query(collection(db, 'bonusConfigs'), orderBy('created_at', 'desc'))
+      const querySnapshot = await getDocs(q)
+      
+      bonusConfigs.value = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as BonusConfig[]
+    } catch (err: any) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Ajouter une configuration de prime
+  async function addBonusConfig(configData: Omit<BonusConfig, 'id' | 'created_at' | 'updated_at'>) {
+    loading.value = true
+    try {
+      const newConfig = {
+        ...configData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      
+      const docRef = await addDoc(collection(db, 'bonusConfigs'), newConfig)
+      bonusConfigs.value.unshift({ id: docRef.id, ...newConfig })
+    } catch (err: any) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Modifier une configuration de prime
+  async function updateBonusConfig(id: string, updates: Partial<BonusConfig>) {
+    loading.value = true
+    try {
+      const updatedData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+      
+      await updateDoc(doc(db, 'bonusConfigs', id), updatedData)
+      
+      const index = bonusConfigs.value.findIndex(config => config.id === id)
+      if (index !== -1) {
+        bonusConfigs.value[index] = {
+          ...bonusConfigs.value[index],
+          ...updatedData
+        }
+      }
+    } catch (err: any) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Supprimer une configuration de prime
+  async function deleteBonusConfig(id: string) {
+    loading.value = true
+    try {
+      await deleteDoc(doc(db, 'bonusConfigs', id))
+      bonusConfigs.value = bonusConfigs.value.filter(config => config.id !== id)
+    } catch (err: any) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Calculer les primes d'un employé pour une période
+  function calculateEmployeeBonuses(employeeId: string, startDate?: Date, endDate?: Date) {
+    const employee = employees.value.find(emp => emp.id === employeeId)
+    if (!employee || !employee.grade) return { salesBonus: 0, serviceBonus: 0, total: 0 }
+
+    const config = bonusConfigs.value.find(c => c.grade === employee.grade && c.is_active)
+    if (!config) return { salesBonus: 0, serviceBonus: 0, total: 0 }
+
+    let filteredTransactions = serviceTransactions.value.filter(t => 
+      t.employee_id === employeeId && 
+      (t.type === 'vente' || t.type === 'prestation') &&
+      t.amount >= config.min_amount_threshold
+    )
+
+    // Filtrer par date si spécifié
+    if (startDate || endDate) {
+      filteredTransactions = filteredTransactions.filter(t => {
+        const transactionDate = new Date(t.created_at)
+        if (startDate && transactionDate < startDate) return false
+        if (endDate && transactionDate > endDate) return false
+        return true
+      })
+    }
+
+    const salesBonus = filteredTransactions
+      .filter(t => t.type === 'vente')
+      .reduce((total, t) => total + (t.amount * config.vente_percentage / 100), 0)
+
+    const serviceBonus = filteredTransactions
+      .filter(t => t.type === 'prestation')
+      .reduce((total, t) => total + (t.amount * config.prestation_percentage / 100), 0)
+
+    return {
+      salesBonus,
+      serviceBonus,
+      total: salesBonus + serviceBonus
+    }
+  }
+
+  // Migration: Ajouter un grade par défaut aux employés existants
+  async function migrateEmployeeGrades() {
+    console.log('[STORE] Migration des grades des employés...')
+    
+    const employeesWithoutGrade = employees.value.filter(emp => !emp.grade)
+    console.log(`[STORE] ${employeesWithoutGrade.length} employés sans grade trouvés`)
+    
+    for (const employee of employeesWithoutGrade) {
+      try {
+        console.log(`[STORE] Attribution du grade 'debutant' à ${employee.first_name} ${employee.last_name}`)
+        await updateEmployee(employee.id, { grade: 'debutant' })
+      } catch (error) {
+        console.error(`[STORE] Erreur lors de la migration du grade pour ${employee.id}:`, error)
+      }
+    }
+    
+    console.log('[STORE] Migration des grades terminée')
+  }
+
+  // Créer les configurations de primes par défaut
+  async function createDefaultBonusConfigs() {
+    console.log('[STORE] Création des configurations de primes par défaut...')
+    
+    const defaultConfigs = [
+      {
+        grade: 'debutant' as const,
+        vente_percentage: 2.0,
+        prestation_percentage: 1.5,
+        min_amount_threshold: 50.0,
+        is_active: true
+      },
+      {
+        grade: 'junior' as const,
+        vente_percentage: 3.0,
+        prestation_percentage: 2.0,
+        min_amount_threshold: 50.0,
+        is_active: true
+      },
+      {
+        grade: 'senior' as const,
+        vente_percentage: 4.0,
+        prestation_percentage: 3.0,
+        min_amount_threshold: 30.0,
+        is_active: true
+      },
+      {
+        grade: 'expert' as const,
+        vente_percentage: 5.0,
+        prestation_percentage: 4.0,
+        min_amount_threshold: 30.0,
+        is_active: true
+      },
+      {
+        grade: 'manager' as const,
+        vente_percentage: 6.0,
+        prestation_percentage: 5.0,
+        min_amount_threshold: 20.0,
+        is_active: true
+      },
+      {
+        grade: 'directeur' as const,
+        vente_percentage: 8.0,
+        prestation_percentage: 6.0,
+        min_amount_threshold: 10.0,
+        is_active: true
+      }
+    ]
+
+    try {
+      for (const config of defaultConfigs) {
+        // Vérifier si la config existe déjà
+        const existingConfig = bonusConfigs.value.find(c => c.grade === config.grade)
+        if (!existingConfig) {
+          console.log(`[STORE] Création config pour grade: ${config.grade}`)
+          await addBonusConfig(config)
+        } else {
+          console.log(`[STORE] Config déjà existante pour grade: ${config.grade}`)
+        }
+      }
+      console.log('[STORE] Configurations par défaut créées avec succès')
+    } catch (error) {
+      console.error('[STORE] Erreur lors de la création des configs par défaut:', error)
+    }
+  }
+
+  // Initialisation complète avec migrations
+  async function initializeBonusSystem() {
+    console.log('[STORE] Initialisation du système de primes...')
+    
+    // 1. Charger les employés et configs existantes
+    await Promise.all([
+      fetchEmployees(),
+      fetchBonusConfigs()
+    ])
+    
+    // 2. Migrer les employés sans grade
+    await migrateEmployeeGrades()
+    
+    // 3. Créer les configs par défaut si nécessaire
+    await createDefaultBonusConfigs()
+    
+    console.log('[STORE] Système de primes initialisé')
+  }
+
   return {
     employees,
     transactions,
     serviceItems,
     serviceTransactions,
+    bonusConfigs,
     activeShifts,
     loading,
     error,
@@ -871,6 +1096,14 @@ export const useAccountingStore = defineStore('accounting', () => {
     saveActiveShiftsState,
     restoreActiveShiftsState,
     setupAutoEndShifts,
-    getEmployeeName
+    getEmployeeName,
+    fetchBonusConfigs,
+    addBonusConfig,
+    updateBonusConfig,
+    deleteBonusConfig,
+    calculateEmployeeBonuses,
+    migrateEmployeeGrades,
+    createDefaultBonusConfigs,
+    initializeBonusSystem
   }
 }) 

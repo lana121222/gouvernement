@@ -139,6 +139,17 @@
             Gestion des prix
           </button>
           <button
+            @click="activeTab = 'bonuses'"
+            :class="[
+              'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
+              activeTab === 'bonuses'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            🎯 Primes & Grades
+          </button>
+          <button
             @click="activeTab = 'transactions'"
             :class="[
               'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
@@ -178,6 +189,10 @@
 
       <div v-if="activeTab === 'pricing'">
         <PricingManagement />
+      </div>
+
+      <div v-if="activeTab === 'bonuses'">
+        <BonusManagement />
       </div>
 
       <div v-if="activeTab === 'transactions'">
@@ -236,6 +251,7 @@ import FormerEmployeesList from '@/components/FormerEmployeesList.vue'
 import ServicesManagement from '@/components/ServicesManagement.vue'
 import SalesManagement from '@/components/SalesManagement.vue'
 import PricingManagement from '@/components/PricingManagement.vue'
+import BonusManagement from '@/components/BonusManagement.vue'
 
 const accountingStore = useAccountingStore()
 const activeTab = ref('employees')

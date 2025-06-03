@@ -25,6 +25,7 @@ export interface Employee {
   last_name: string
   email: string
   position: string
+  grade: 'debutant' | 'junior' | 'senior' | 'expert' | 'manager' | 'directeur'
   hourly_rate: number
   hours_worked: number
   bonus_amount: number
@@ -95,4 +96,15 @@ export interface ServiceTransaction {
   amount: number
   custom_description?: string // Pour "autre"
   shift_duration?: number // En minutes pour fin de service
+}
+
+export interface BonusConfig {
+  id: string
+  grade: 'debutant' | 'junior' | 'senior' | 'expert' | 'manager' | 'directeur'
+  vente_percentage: number // Pourcentage sur les ventes
+  prestation_percentage: number // Pourcentage sur les prestations
+  min_amount_threshold: number // Montant minimum pour déclencher la prime
+  is_active: boolean
+  created_at: string
+  updated_at: string
 } 
