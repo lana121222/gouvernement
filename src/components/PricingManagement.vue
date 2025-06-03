@@ -242,8 +242,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAccountingStore } from '@/stores/accounting'
 import type { ServiceItem } from '@/lib/firebase'
+import { useAuthStore } from '@/stores/auth'
 
 const accountingStore = useAccountingStore()
+const authStore = useAuthStore()
 
 // État des modals
 const showAddModal = ref(false)
@@ -293,6 +295,30 @@ const submitForm = async () => {
   console.log('[PRICING] formData.value:', formData.value)
   console.log('[PRICING] accountingStore:', accountingStore)
   console.log('[PRICING] accountingStore.addServiceItem:', typeof accountingStore.addServiceItem)
+  
+  // NOUVEAU: Vérifier l'authentification
+  console.log('[PRICING] ===== VERIFICATION AUTHENTIFICATION =====')
+  console.log('[PRICING] authStore:', authStore)
+  console.log('[PRICING] authStore.user:', authStore.user)
+  console.log('[PRICING] authStore.isAuthenticated:', authStore.isAuthenticated)
+  console.log('[PRICING] authStore.canAccessAccounting:', authStore.canAccessAccounting)
+  
+  // Vérifier Firebase Auth directement
+  const { auth } = await import('@/lib/firebase')
+  console.log('[PRICING] Firebase Auth currentUser:', auth.currentUser)
+  console.log('[PRICING] Firebase Auth currentUser uid:', auth.currentUser?.uid)
+  
+  if (!authStore.isAuthenticated) {
+    console.log('[PRICING] ERREUR: Utilisateur non authentifié!')
+    alert('Vous devez être connecté pour ajouter un service')
+    return
+  }
+  
+  if (!authStore.canAccessAccounting) {
+    console.log('[PRICING] ERREUR: Permissions insuffisantes!')
+    alert('Vous n\'avez pas les permissions nécessaires pour ajouter un service')
+    return
+  }
   
   try {
     // Validation des données
@@ -355,6 +381,20 @@ const submitForm = async () => {
     console.error('[PRICING] Type d\'erreur:', error.constructor.name)
     console.error('[PRICING] Message:', error.message)
     console.error('[PRICING] Stack:', error.stack)
+    
+    // NOUVEAU: Analyser les erreurs Firebase spécifiques
+    if (error.code) {
+      console.error('[PRICING] Code d\'erreur Firebase:', error.code)
+      if (error.code === 'permission-denied') {
+        console.error('[PRICING] ERREUR DE PERMISSION FIREBASE!')
+        console.error('[PRICING] L\'utilisateur n\'a pas les permissions nécessaires')
+        alert('Erreur de permissions: Vous n\'avez pas le droit d\'ajouter des services. Vérifiez votre authentification et vos permissions.')
+      } else if (error.code === 'unauthenticated') {
+        console.error('[PRICING] ERREUR D\'AUTHENTIFICATION FIREBASE!')
+        alert('Erreur d\'authentification: Vous devez être connecté pour effectuer cette action.')
+      }
+    }
+    
     alert('Erreur lors de l\'enregistrement: ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
   }
 }

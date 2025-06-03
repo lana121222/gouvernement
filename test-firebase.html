@@ -1,64 +1,178 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Test Firebase</title>
+    <title>Test Firebase - Gouvernement RP</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 10px; }
+        #results { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+    </style>
 </head>
 <body>
-    <h1>Test Firebase</h1>
+    <h1>Test Firebase - Gouvernement RP</h1>
+    
+    <h2>Tests d'authentification</h2>
+    <button onclick="testAuth()">Test Auth Status</button>
+    <button onclick="testLogin()">Test Login Admin</button>
+    <button onclick="testLogout()">Test Logout</button>
+    
+    <h2>Tests des services</h2>
     <button onclick="testAddService()">Test Ajouter Service</button>
     <button onclick="testListServices()">Test Lister Services</button>
+    <button onclick="testPermissions()">Test Permissions</button>
+    
     <div id="results"></div>
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'
-        import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js'
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js'
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'
 
-        // Configuration Firebase (remplacez par votre config)
+        // Configuration Firebase (vous devez mettre votre vraie config ici)
         const firebaseConfig = {
-            // Vous devez mettre votre config ici
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         }
 
         const app = initializeApp(firebaseConfig)
         const db = getFirestore(app)
+        const auth = getAuth(app)
+
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results')
+            const p = document.createElement('p')
+            p.className = type
+            p.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`
+            results.appendChild(p)
+            console.log(`[TEST] ${message}`)
+        }
+
+        window.testAuth = function() {
+            addResult('🔍 Test du statut d\'authentification...', 'info')
+            const user = auth.currentUser
+            if (user) {
+                addResult(`✅ Utilisateur connecté: ${user.email} (UID: ${user.uid})`, 'success')
+            } else {
+                addResult('❌ Aucun utilisateur connecté', 'error')
+            }
+        }
+
+        window.testLogin = async function() {
+            try {
+                addResult('🔑 Tentative de connexion admin...', 'info')
+                const result = await signInWithEmailAndPassword(auth, 'admin@gouvernement-rp.com', 'admin123')
+                addResult(`✅ Connexion réussie: ${result.user.email}`, 'success')
+            } catch (error) {
+                addResult(`❌ Erreur de connexion: ${error.message} (Code: ${error.code})`, 'error')
+            }
+        }
+
+        window.testLogout = async function() {
+            try {
+                addResult('🚪 Déconnexion...', 'info')
+                await signOut(auth)
+                addResult('✅ Déconnexion réussie', 'success')
+            } catch (error) {
+                addResult(`❌ Erreur de déconnexion: ${error.message}`, 'error')
+            }
+        }
 
         window.testAddService = async function() {
             try {
-                console.log('[TEST] Ajout service...')
+                addResult('📝 Test d\'ajout de service...', 'info')
+                
+                if (!auth.currentUser) {
+                    addResult('❌ Vous devez être connecté pour ajouter un service', 'error')
+                    return
+                }
+                
+                addResult(`🔐 Utilisateur: ${auth.currentUser.email}`, 'info')
+                
                 const docRef = await addDoc(collection(db, 'serviceItems'), {
-                    name: 'Test Service',
+                    name: 'Test Service ' + Date.now(),
                     category: 'vente',
                     price: 10.50,
-                    description: 'Service de test',
+                    description: 'Service de test automatique',
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 })
-                console.log('[TEST] Service ajouté avec ID:', docRef.id)
-                document.getElementById('results').innerHTML += `<p>✅ Service ajouté: ${docRef.id}</p>`
+                addResult(`✅ Service ajouté avec succès! ID: ${docRef.id}`, 'success')
             } catch (error) {
-                console.error('[TEST] Erreur:', error)
-                document.getElementById('results').innerHTML += `<p>❌ Erreur: ${error.message}</p>`
+                addResult(`❌ Erreur lors de l'ajout: ${error.message} (Code: ${error.code})`, 'error')
+                if (error.code === 'permission-denied') {
+                    addResult('🚨 Erreur de permissions! Vérifiez les règles Firestore et le rôle utilisateur.', 'error')
+                }
             }
         }
 
         window.testListServices = async function() {
             try {
-                console.log('[TEST] Récupération services...')
+                addResult('📋 Test de listage des services...', 'info')
                 const querySnapshot = await getDocs(collection(db, 'serviceItems'))
-                console.log('[TEST] Nombre de services:', querySnapshot.size)
+                addResult(`✅ ${querySnapshot.size} service(s) trouvé(s)`, 'success')
                 
-                let html = `<p>📋 Services trouvés (${querySnapshot.size}):</p><ul>`
                 querySnapshot.forEach((doc) => {
                     const data = doc.data()
-                    html += `<li>${data.name} - ${data.category} - $${data.price}</li>`
+                    addResult(`  📌 ${data.name} - ${data.price}$ (${data.category})`, 'info')
                 })
-                html += '</ul>'
-                
-                document.getElementById('results').innerHTML += html
             } catch (error) {
-                console.error('[TEST] Erreur:', error)
-                document.getElementById('results').innerHTML += `<p>❌ Erreur: ${error.message}</p>`
+                addResult(`❌ Erreur lors du listage: ${error.message} (Code: ${error.code})`, 'error')
             }
         }
+
+        window.testPermissions = async function() {
+            try {
+                addResult('🛡️ Test des permissions utilisateur...', 'info')
+                
+                if (!auth.currentUser) {
+                    addResult('❌ Aucun utilisateur connecté', 'error')
+                    return
+                }
+
+                // Essayer de lire le document utilisateur
+                const userDocRef = doc(db, 'users', auth.currentUser.uid)
+                const userDoc = await getDoc(userDocRef)
+                
+                if (userDoc.exists()) {
+                    const userData = userDoc.data()
+                    addResult(`✅ Document utilisateur trouvé:`, 'success')
+                    addResult(`  👤 Email: ${userData.email}`, 'info')
+                    addResult(`  🎭 Rôle: ${userData.role}`, 'info')
+                    addResult(`  🔑 Permissions: ${userData.permissions.join(', ')}`, 'info')
+                    
+                    if (userData.role === 'admin' || userData.role === 'manager' || userData.permissions.includes('accounting')) {
+                        addResult(`✅ L'utilisateur a les permissions pour la comptabilité`, 'success')
+                    } else {
+                        addResult(`❌ L'utilisateur n'a PAS les permissions pour la comptabilité`, 'error')
+                    }
+                } else {
+                    addResult(`❌ Aucun document utilisateur trouvé pour l'UID: ${auth.currentUser.uid}`, 'error')
+                    addResult(`ℹ️ Cela peut expliquer les erreurs de permissions`, 'info')
+                }
+                
+            } catch (error) {
+                addResult(`❌ Erreur lors du test de permissions: ${error.message} (Code: ${error.code})`, 'error')
+            }
+        }
+
+        // Écouter les changements d'authentification
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                addResult(`🔄 Changement d'authentification: connecté en tant que ${user.email}`, 'info')
+            } else {
+                addResult(`🔄 Changement d'authentification: déconnecté`, 'info')
+            }
+        })
+
+        // Message de démarrage
+        addResult('🚀 Page de test chargée. Cliquez sur les boutons pour tester les fonctionnalités.', 'info')
     </script>
 </body>
 </html> 
