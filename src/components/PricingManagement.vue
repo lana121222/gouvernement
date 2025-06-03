@@ -313,13 +313,23 @@ const submitForm = async () => {
       description: formData.value.description.trim() || undefined
     }
 
+    console.log('[PRICING] Données à sauvegarder:', serviceData)
+    console.log('[PRICING] Services actuels avant ajout:', accountingStore.serviceItems.length)
+
     if (editingService.value) {
       // Modification
       await accountingStore.updateServiceItem(editingService.value.id, serviceData)
+      console.log('[PRICING] Service modifié')
     } else {
       // Ajout
       await accountingStore.addServiceItem(serviceData)
+      console.log('[PRICING] Service ajouté')
     }
+    
+    // Forcer un rechargement des services pour s'assurer qu'ils sont à jour
+    await accountingStore.fetchServiceItems()
+    console.log('[PRICING] Services après rechargement:', accountingStore.serviceItems.length)
+    console.log('[PRICING] Services par catégorie:', accountingStore.servicesByCategory)
     
     closeModal()
     
@@ -342,6 +352,13 @@ const closeModal = () => {
 }
 
 onMounted(async () => {
+  console.log('[PRICING] Composant monté, initialisation...')
+  console.log('[PRICING] Services avant init:', accountingStore.serviceItems.length)
+  
   await accountingStore.initializeServiceStore()
+  
+  console.log('[PRICING] Services après init:', accountingStore.serviceItems.length)
+  console.log('[PRICING] Liste des services:', accountingStore.serviceItems)
+  console.log('[PRICING] Services par catégorie:', accountingStore.servicesByCategory)
 })
 </script> 
